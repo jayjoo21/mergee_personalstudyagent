@@ -10,10 +10,9 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
   if (mode === 'engine') {
     return (
       <div className="flex-1 flex flex-col min-h-0">
-        {/* Mode toggle */}
         <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-1 flex-shrink-0">
           <button onClick={() => setMode('clash')} className="px-3 py-1.5 text-xs font-semibold rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
-            2개 클래시
+            클래시
           </button>
           <button onClick={() => setMode('engine')} className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-gray-900 text-white transition-colors">
             전체 최적화
@@ -25,16 +24,29 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
   }
 
   const active = stacks.filter((s) => !s.passed);
-  const [s1Id, setS1Id] = useState(active[0]?.id || '');
-  const [s2Id, setS2Id] = useState(active[1]?.id || '');
+  const [selectedIds, setSelectedIds] = useState(
+    active.slice(0, 2).map(s => s.id)
+  );
   const [hours, setHours] = useState(4);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const s1 = stacks.find((s) => s.id === s1Id);
-  const s2 = stacks.find((s) => s.id === s2Id);
-  const canRun = s1 && s2 && s1Id !== s2Id;
+  const addStack = () => {
+    if (selectedIds.length >= 5) return;
+    const available = active.filter(s => !selectedIds.includes(s.id));
+    if (available.length > 0) setSelectedIds(prev => [...prev, available[0].id]);
+  };
+
+  const removeStack = (idx) => {
+    if (selectedIds.length <= 2) return;
+    setSelectedIds(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateStack = (idx, id) => setSelectedIds(prev => prev.map((v, i) => i === idx ? id : v));
+
+  const selectedStacks = selectedIds.map(id => stacks.find(s => s.id === id)).filter(Boolean);
+  const canRun = selectedStacks.length >= 2 && new Set(selectedIds).size === selectedIds.length;
 
   const getDday = (dateStr) => {
     if (!dateStr) return null;
@@ -45,6 +57,8 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
     if (!canRun) return;
     setLoading(true); setError(''); setResult(null);
     try {
+      const s1 = selectedStacks[0];
+      const s2 = selectedStacks[1];
       const r = await getStackClashPlan(apiKey, s1, s2, hours);
       setResult(r);
     } catch (e) {
@@ -54,6 +68,8 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
     }
   };
 
+  const s1 = selectedStacks[0];
+  const s2 = selectedStacks[1];
   const pct1 = result ? Math.round((result.stack1Hours / hours) * 100) : 50;
   const pct2 = result ? 100 - pct1 : 50;
 
@@ -62,7 +78,7 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
       {/* Mode toggle */}
       <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-1 flex-shrink-0">
         <button onClick={() => setMode('clash')} className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-gray-900 text-white transition-colors">
-          2개 클래시
+          클래시
         </button>
         <button onClick={() => setMode('engine')} className="px-3 py-1.5 text-xs font-semibold rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
           전체 최적화
@@ -73,7 +89,7 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
       <div className="w-[40%] flex flex-col border-r border-gray-100 overflow-y-auto bg-white">
         <div className="px-6 py-5 border-b border-gray-100">
           <h1 className="text-[28px] font-black text-gray-900 tracking-tight leading-none">stack clash</h1>
-          <p className="text-[14px] text-gray-400 mt-1.5">두 시험을 동시에 준비할 때 최적 시간 배분을 계산해요</p>
+          <p className="text-[14px] text-gray-400 mt-1.5">시험들을 동시에 준비할 때 최적 시간 배분을 계산해요</p>
         </div>
 
         <div className="px-6 py-6 space-y-6 flex-1">
@@ -83,51 +99,65 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
             </div>
           ) : (
             <>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">시험 선택</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">시험 선택 (2–5개)</p>
 
-              {/* Stack 1 */}
-              <div>
-                <label className="text-sm text-gray-600 font-semibold block mb-2">시험 1</label>
-                <select value={s1Id} onChange={(e) => setS1Id(e.target.value)}
-                  className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
-                  {active.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-                {s1 && (
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: s1.color }} />
-                    <span className="text-xs text-gray-400">진도 {s1.progress || 0}%</span>
-                    {getDday(s1.examDate) !== null && (
-                      <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">D-{getDday(s1.examDate)}</span>
-                    )}
-                    <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                      <div className="h-1.5 rounded-full" style={{ width: (s1.progress||0)+'%', backgroundColor: s1.color }} />
+              {/* Dynamic stack selects */}
+              <div className="space-y-3">
+                {selectedIds.map((id, idx) => {
+                  const s = stacks.find(st => st.id === id);
+                  return (
+                    <div key={idx}>
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-gray-600 font-semibold w-14 flex-shrink-0">시험 {idx + 1}</label>
+                        <select
+                          value={id}
+                          onChange={(e) => updateStack(idx, e.target.value)}
+                          className="flex-1 border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                        >
+                          {active.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
+                        </select>
+                        {selectedIds.length > 2 && (
+                          <button
+                            onClick={() => removeStack(idx)}
+                            className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors flex-shrink-0"
+                          >
+                            −
+                          </button>
+                        )}
+                      </div>
+                      {s && (
+                        <div className="mt-2 ml-16 flex items-center gap-3">
+                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: s.color }} />
+                          <span className="text-xs text-gray-400">진도 {s.progress || 0}%</span>
+                          {getDday(s.examDate) !== null && (
+                            <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">D-{getDday(s.examDate)}</span>
+                          )}
+                          <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                            <div className="h-1.5 rounded-full" style={{ width: (s.progress||0)+'%', backgroundColor: s.color }} />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
 
-              {/* Stack 2 */}
-              <div>
-                <label className="text-sm text-gray-600 font-semibold block mb-2">시험 2</label>
-                <select value={s2Id} onChange={(e) => setS2Id(e.target.value)}
-                  className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
-                  {active.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-                {s2 && (
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: s2.color }} />
-                    <span className="text-xs text-gray-400">진도 {s2.progress || 0}%</span>
-                    {getDday(s2.examDate) !== null && (
-                      <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">D-{getDday(s2.examDate)}</span>
-                    )}
-                    <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                      <div className="h-1.5 rounded-full" style={{ width: (s2.progress||0)+'%', backgroundColor: s2.color }} />
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Add stack button */}
+              {selectedIds.length < 5 && active.length > selectedIds.length && (
+                <button
+                  onClick={addStack}
+                  className="text-xs text-indigo-500 hover:text-indigo-700 font-semibold transition-colors flex items-center gap-1"
+                >
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  + 시험 추가
+                </button>
+              )}
 
-              {s1Id === s2Id && <p className="text-sm text-red-400">서로 다른 시험을 선택하세요</p>}
+              {new Set(selectedIds).size !== selectedIds.length && (
+                <p className="text-sm text-red-400">서로 다른 시험을 선택하세요</p>
+              )}
 
               {/* Hours slider */}
               <div>
@@ -162,7 +192,7 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
           <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40 py-20">
             <div className="text-6xl mb-4">⚡</div>
             <p className="text-gray-500 font-semibold text-base">계산 결과가 여기 표시됩니다</p>
-            <p className="text-gray-400 text-sm mt-1">왼쪽에서 두 시험을 선택하고 계산해보세요</p>
+            <p className="text-gray-400 text-sm mt-1">왼쪽에서 시험을 선택하고 계산해보세요</p>
           </div>
         ) : s1 && s2 && (
           <>

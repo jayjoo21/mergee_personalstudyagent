@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getTodayMission } from '../utils/claude';
 import { storage } from '../utils/storage';
 import { getTodayStr } from '../utils/helpers';
@@ -13,25 +13,20 @@ const PRIORITY_STYLES = {
 
 /**
  * Parse a duration string and return estimated minutes.
- * e.g. "2시간" → 120, "1시간 30분" → 90, "45분" → 45, "1.5 hours" → 90
  */
 const parseDurationToMinutes = (duration) => {
   if (!duration) return 0;
   let total = 0;
-  // Korean hours
   const hoursKo = duration.match(/(\d+(?:\.\d+)?)\s*시간/);
   if (hoursKo) total += Math.round(parseFloat(hoursKo[1]) * 60);
-  // Korean minutes
   const minsKo = duration.match(/(\d+)\s*분/);
   if (minsKo) total += parseInt(minsKo[1], 10);
-  // English "X hours"
   if (total === 0) {
     const hoursEn = duration.match(/(\d+(?:\.\d+)?)\s*hour/i);
     if (hoursEn) total += Math.round(parseFloat(hoursEn[1]) * 60);
     const minsEn = duration.match(/(\d+)\s*min/i);
     if (minsEn) total += parseInt(minsEn[1], 10);
   }
-  // Fallback: grab first number, treat as minutes if < 10, else minutes
   if (total === 0) {
     const num = duration.match(/\d+/);
     if (num) total = parseInt(num[0], 10);
@@ -50,12 +45,39 @@ const SkeletonRow = () => (
   </div>
 );
 
-export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToStack }) {
+export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToStack, tasks = [] }) {
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [accepted, setAccepted] = useState(false);
   const [done, setDone] = useState(new Set());
+
+  // Inline editing
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
+  // Manual add
+  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [manualForm, setManualForm] = useState({ stack: '', mission: '', duration: '', priority: 'medium' });
+
+  // MY TASKS picker
+  const [showTaskPicker, setShowTaskPicker] = useState(false);
+  const taskPickerRef = useRef(null);
+
+  // Drag reorder
+  const [dragOverIdx, setDragOverIdx] = useState(null);
+  const dragIdx = useRef(null);
+
+  useEffect(() => {
+    if (!showTaskPicker) return;
+    const handler = (e) => {
+      if (taskPickerRef.current && !taskPickerRef.current.contains(e.target)) {
+        setShowTaskPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showTaskPicker]);
 
   const toggleDone = (i) => setDone((prev) => {
     const next = new Set(prev);
@@ -68,8 +90,6 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
   const loadOrGenerate = useCallback(
     async (force = false) => {
       const today = getTodayStr();
-
-      // Check cache unless forced
       if (!force) {
         const cached = storage.get(PLAN_STORAGE_KEY);
         if (cached && cached.date === today && Array.isArray(cached.plan) && cached.plan.length > 0) {
@@ -77,21 +97,16 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
           return;
         }
       }
-
       if (!apiKey) return;
       if (activeStacks.length === 0) {
         setPlan([]);
         return;
       }
-
       setLoading(true);
       setError(null);
       setAccepted(false);
-
       try {
         const result = await getTodayMission(apiKey, activeStacks);
-
-        // Enrich with stackId and goalMinutes
         const enriched = (result || []).map((item) => {
           const matched = activeStacks.find(
             (s) => s.name === item.stack || (item.stack && s.name.includes(item.stack))
@@ -102,7 +117,6 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
             goalMinutes: parseDurationToMinutes(item.duration),
           };
         });
-
         setPlan(enriched);
         storage.set(PLAN_STORAGE_KEY, { date: today, plan: enriched });
       } catch (e) {
@@ -115,7 +129,6 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
     [apiKey, JSON.stringify(activeStacks.map((s) => s.id))]
   );
 
-  // On mount: load from cache or generate
   useEffect(() => {
     loadOrGenerate(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,6 +149,88 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
   const handleRegenerate = () => {
     loadOrGenerate(true);
   };
+
+  // Inline edit handlers
+  const startEdit = (i) => {
+    setEditingIdx(i);
+    setEditForm({ ...plan[i] });
+  };
+
+  const saveEdit = () => {
+    if (editingIdx === null) return;
+    const updated = plan.map((item, i) => i === editingIdx ? { ...editForm, goalMinutes: parseDurationToMinutes(editForm.duration) } : item);
+    setPlan(updated);
+    storage.set(PLAN_STORAGE_KEY, { date: getTodayStr(), plan: updated });
+    setEditingIdx(null);
+  };
+
+  const deleteItem = (idx) => {
+    const updated = plan.filter((_, i) => i !== idx);
+    setPlan(updated);
+    storage.set(PLAN_STORAGE_KEY, { date: getTodayStr(), plan: updated });
+    setDone((prev) => {
+      const next = new Set();
+      prev.forEach((i) => { if (i < idx) next.add(i); else if (i > idx) next.add(i - 1); });
+      return next;
+    });
+  };
+
+  // Manual add
+  const addManualItem = () => {
+    if (!manualForm.stack.trim() && !manualForm.mission.trim()) return;
+    const newItem = {
+      stack: manualForm.stack,
+      mission: manualForm.mission,
+      duration: manualForm.duration,
+      priority: manualForm.priority,
+      stackId: null,
+      goalMinutes: parseDurationToMinutes(manualForm.duration),
+    };
+    const updated = [...(plan || []), newItem];
+    setPlan(updated);
+    storage.set(PLAN_STORAGE_KEY, { date: getTodayStr(), plan: updated });
+    setManualForm({ stack: '', mission: '', duration: '', priority: 'medium' });
+    setShowManualAdd(false);
+  };
+
+  // MY TASKS add
+  const addFromTask = (task) => {
+    const newItem = {
+      stack: task.name,
+      mission: task.name + ' 완료',
+      duration: '',
+      priority: 'medium',
+      stackId: null,
+      goalMinutes: 0,
+    };
+    const updated = [...(plan || []), newItem];
+    setPlan(updated);
+    storage.set(PLAN_STORAGE_KEY, { date: getTodayStr(), plan: updated });
+  };
+
+  // Drag reorder
+  const handleDragStart = (idx) => {
+    dragIdx.current = idx;
+  };
+
+  const handleDragOver = (e, idx) => {
+    e.preventDefault();
+    setDragOverIdx(idx);
+  };
+
+  const handleDrop = (idx) => {
+    const from = dragIdx.current;
+    if (from === null || from === idx) { setDragOverIdx(null); return; }
+    const updated = [...plan];
+    const [item] = updated.splice(from, 1);
+    updated.splice(idx, 0, item);
+    setPlan(updated);
+    storage.set(PLAN_STORAGE_KEY, { date: getTodayStr(), plan: updated });
+    dragIdx.current = null;
+    setDragOverIdx(null);
+  };
+
+  const activeTasks = (tasks || []).filter(t => !t.done);
 
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm">
@@ -163,11 +258,7 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
             stroke="currentColor"
             strokeWidth={2}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4 4v5h5M20 20v-5h-5M4.93 15A9 9 0 1 0 6.5 6.5L4 9"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 15A9 9 0 1 0 6.5 6.5L4 9" />
           </svg>
           regenerate
         </button>
@@ -183,10 +274,7 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
       ) : error ? (
         <div className="py-4 text-center">
           <p className="text-sm text-red-400 mb-3">{error}</p>
-          <button
-            onClick={handleRegenerate}
-            className="text-xs text-gray-500 hover:text-gray-800 underline underline-offset-2 transition-colors"
-          >
+          <button onClick={handleRegenerate} className="text-xs text-gray-500 hover:text-gray-800 underline underline-offset-2 transition-colors">
             try again
           </button>
         </div>
@@ -203,10 +291,57 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
           {plan.map((item, i) => {
             const pStyle = PRIORITY_STYLES[item.priority] || PRIORITY_STYLES.low;
             const isDone = done.has(i);
+            const isDragOver = dragOverIdx === i;
+
+            if (editingIdx === i) {
+              return (
+                <div key={i} className="py-3 border-b border-gray-50 space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      value={editForm.stack || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, stack: e.target.value }))}
+                      placeholder="Stack"
+                      className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                    <select
+                      value={editForm.priority || 'medium'}
+                      onChange={(e) => setEditForm((p) => ({ ...p, priority: e.target.value }))}
+                      className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none bg-white"
+                    >
+                      <option value="high">high</option>
+                      <option value="medium">medium</option>
+                      <option value="low">low</option>
+                    </select>
+                  </div>
+                  <input
+                    value={editForm.mission || ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, mission: e.target.value }))}
+                    placeholder="Mission"
+                    className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                  />
+                  <input
+                    value={editForm.duration || ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, duration: e.target.value }))}
+                    placeholder="Duration (e.g. 1시간 30분)"
+                    className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+                  />
+                  <div className="flex gap-1.5">
+                    <button onClick={saveEdit} className="flex-1 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors">저장</button>
+                    <button onClick={() => setEditingIdx(null)} className="px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">취소</button>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={i}
-                className={`flex items-start gap-3 py-3.5 border-b border-gray-50 last:border-0 transition-opacity duration-150 ${isDone ? 'opacity-50' : ''}`}
+                draggable={true}
+                onDragStart={() => handleDragStart(i)}
+                onDragOver={(e) => handleDragOver(e, i)}
+                onDrop={() => handleDrop(i)}
+                onDragEnd={() => setDragOverIdx(null)}
+                className={`group flex items-start gap-3 py-3.5 border-b border-gray-50 last:border-0 transition-opacity duration-150 cursor-grab active:cursor-grabbing ${isDone ? 'opacity-50' : ''} ${isDragOver ? 'bg-gray-50 rounded-xl' : ''}`}
               >
                 {/* Checkbox */}
                 <button
@@ -241,18 +376,121 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
                   )}
                 </div>
 
-                {/* 시작하기 button */}
-                {item.stackId && onNavigateToStack && (
+                {/* Actions */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {item.stackId && onNavigateToStack && (
+                    <button
+                      onClick={() => onNavigateToStack(item.stackId)}
+                      className="text-xs font-semibold px-2.5 py-1.5 bg-gray-100 text-gray-600 hover:bg-gray-900 hover:text-white rounded-xl transition-all duration-150 whitespace-nowrap"
+                    >
+                      시작 →
+                    </button>
+                  )}
+                  {/* Edit button */}
                   <button
-                    onClick={() => onNavigateToStack(item.stackId)}
-                    className="flex-shrink-0 text-xs font-semibold px-2.5 py-1.5 bg-gray-100 text-gray-600 hover:bg-gray-900 hover:text-white rounded-xl transition-all duration-150 whitespace-nowrap"
+                    onClick={() => startEdit(i)}
+                    className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
                   >
-                    시작 →
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
                   </button>
-                )}
+                  {/* Delete button */}
+                  <button
+                    onClick={() => deleteItem(i)}
+                    className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all"
+                  >
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             );
           })}
+
+          {/* Control buttons */}
+          <div className="flex gap-2 mt-3 mb-2">
+            <button
+              onClick={() => setShowManualAdd((v) => !v)}
+              className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors font-medium"
+            >
+              + 직접 추가
+            </button>
+            {activeTasks.length > 0 && (
+              <div className="relative" ref={taskPickerRef}>
+                <button
+                  onClick={() => setShowTaskPicker((v) => !v)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors font-medium"
+                >
+                  MY TASKS에서 추가
+                </button>
+                {showTaskPicker && (
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-20 py-1 min-w-[160px]">
+                    {activeTasks.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => { addFromTask(t); setShowTaskPicker(false); }}
+                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Manual add form */}
+          {showManualAdd && (
+            <div className="mb-3 p-3 bg-gray-50 rounded-xl space-y-2">
+              <div className="flex gap-2">
+                <input
+                  value={manualForm.stack}
+                  onChange={(e) => setManualForm((p) => ({ ...p, stack: e.target.value }))}
+                  placeholder="Stack 이름"
+                  className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white"
+                />
+                <select
+                  value={manualForm.priority}
+                  onChange={(e) => setManualForm((p) => ({ ...p, priority: e.target.value }))}
+                  className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none bg-white"
+                >
+                  <option value="high">high</option>
+                  <option value="medium">medium</option>
+                  <option value="low">low</option>
+                </select>
+              </div>
+              <input
+                value={manualForm.mission}
+                onChange={(e) => setManualForm((p) => ({ ...p, mission: e.target.value }))}
+                placeholder="미션 내용"
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white"
+              />
+              <input
+                value={manualForm.duration}
+                onChange={(e) => setManualForm((p) => ({ ...p, duration: e.target.value }))}
+                placeholder="시간 (예: 1시간 30분)"
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300 bg-white"
+              />
+              <div className="flex gap-1.5">
+                <button
+                  onClick={addManualItem}
+                  className="flex-1 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  추가
+                </button>
+                <button
+                  onClick={() => { setShowManualAdd(false); setManualForm({ stack: '', mission: '', duration: '', priority: 'medium' }); }}
+                  className="px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Accept / Accepted button */}
           <div className="mt-4">

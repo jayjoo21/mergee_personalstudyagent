@@ -12,6 +12,9 @@ import MergeReport from './components/MergeReport';
 import AddStackModal from './components/AddStackModal';
 import ApiKeyModal from './components/ApiKeyModal';
 import ConfettiEffect from './components/ConfettiEffect';
+import TopNav from './components/TopNav';
+import CounselingPage from './components/CounselingPage';
+import TasksPage from './components/TasksPage';
 import { storage, KEYS } from './utils/storage';
 import { extractWrongNote } from './utils/claude';
 import { getTodayStr } from './utils/helpers';
@@ -81,6 +84,8 @@ export default function App() {
   const [timerGoals, setTimerGoals] = useState(() => storage.get('mergee_timer_goals', {}));
   const [resumeMaterials, setResumeMaterials] = useState(() => storage.get(KEYS.RESUME_MATERIALS, []));
   const [counselingLogs, setCounselingLogs] = useState(() => storage.get(KEYS.COUNSELING_LOGS, []));
+  const [tasks, setTasks] = useState(() => storage.get(KEYS.TASKS, []));
+  const [tags, setTags] = useState(() => storage.get(KEYS.TAGS, []));
 
   /* ─── Landing / UI state ─── */
   const [started, setStarted] = useState(() => !!storage.get(KEYS.API_KEY, ''));
@@ -91,6 +96,7 @@ export default function App() {
   const [showApiKey, setShowApiKey] = useState(() => !storage.get(KEYS.API_KEY, ''));
   const [mergedStack, setMergedStack] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
 
   /* ─── Persist to localStorage ─── */
   useEffect(() => { storage.set(KEYS.STACKS, stacks); }, [stacks]);
@@ -101,6 +107,8 @@ export default function App() {
   useEffect(() => { storage.set('mergee_timer_goals', timerGoals); }, [timerGoals]);
   useEffect(() => { storage.set(KEYS.RESUME_MATERIALS, resumeMaterials); }, [resumeMaterials]);
   useEffect(() => { storage.set(KEYS.COUNSELING_LOGS, counselingLogs); }, [counselingLogs]);
+  useEffect(() => { storage.set(KEYS.TASKS, tasks); }, [tasks]);
+  useEffect(() => { storage.set(KEYS.TAGS, tags); }, [tags]);
 
   /* ─── Study activity tracker ─── */
   const recordActivity = useCallback(() => {
@@ -229,6 +237,52 @@ export default function App() {
   const handleSaveCounselingLog = (log) => setCounselingLogs((prev) => [log, ...prev]);
   const handleDeleteCounselingLog = (id) => setCounselingLogs((prev) => prev.filter((l) => l.id !== id));
 
+  /* ─── Tasks ─── */
+  const handleAddTask = (task) => setTasks((prev) => [task, ...prev]);
+  const handleUpdateTask = (updated) => setTasks((prev) => prev.map((t) => t.id === updated.id ? updated : t));
+  const handleNavigateToTask = (taskId) => { setSelectedTaskId(taskId); setCurrentView('tasks'); };
+  const handleToggleTask = (id) => setTasks((prev) => prev.map((t) => t.id === id ? { ...t, done: !t.done } : t));
+  const handleDeleteTask = (id) => setTasks((prev) => prev.filter((t) => t.id !== id));
+
+  /* ─── Tags ─── */
+  const TAG_PALETTE = ['#6366f1','#10b981','#f59e0b','#f43f5e','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16','#64748b','#a78bfa'];
+  const handleCreateTag = (name) => {
+    const newTag = { id: String(Date.now()), name, color: TAG_PALETTE[tags.length % TAG_PALETTE.length] };
+    setTags((prev) => [...prev, newTag]);
+    return newTag;
+  };
+  const handleUpdateTag = (updated) => setTags((prev) => prev.map((t) => t.id === updated.id ? updated : t));
+  const handleDeleteTag = (tagId) => {
+    setTags((prev) => prev.filter((t) => t.id !== tagId));
+    setTasks((prev) => prev.map((t) => ({ ...t, tags: (t.tags || []).filter((id) => id !== tagId) })));
+  };
+
+  /* ─── Conversions ─── */
+  const handleConvertStackToTask = (stack) => {
+    handleDeleteStack(stack.id);
+    handleAddTask({
+      id: String(Date.now()),
+      name: stack.name,
+      dueDate: stack.examDate || '',
+      color: stack.color || '#6366f1',
+      done: false,
+      createdAt: new Date().toISOString(),
+    });
+  };
+
+  const handleConvertTaskToStack = (task, systemPrompt) => {
+    handleDeleteTask(task.id);
+    handleSaveStack({
+      id: String(Date.now()),
+      name: task.name,
+      examDate: task.dueDate || '',
+      color: task.color || '#6366f1',
+      systemPrompt: systemPrompt || '',
+      progress: 0,
+      passed: false,
+    });
+  };
+
   /* ─── Navigation ─── */
   const handleSelectStack = (id) => { setSelectedStackId(id); setCurrentView('chat'); };
 
@@ -289,79 +343,113 @@ export default function App() {
         onOpenSettings={() => setShowApiKey(true)}
         onUnmerge={handleUnmerge}
         onGoLanding={handleGoLanding}
+        tasks={tasks}
+        onAddTask={handleAddTask}
+        onToggleTask={handleToggleTask}
+        onDeleteTask={handleDeleteTask}
+        onNavigateToTask={handleNavigateToTask}
+        onConvertStackToTask={handleConvertStackToTask}
+        onConvertTaskToStack={handleConvertTaskToStack}
+        allTags={tags}
+        onCreateTag={handleCreateTag}
       />
 
       {/* ── Main ── */}
-      {currentView === 'dashboard' && (
-        <Dashboard
-          stacks={stacks}
-          conversations={conversations}
-          wrongNotes={wrongNotes}
-          studyActivity={studyActivity}
-          streakData={streakData}
-          apiKey={apiKey}
-          onMarkPassed={handleMarkPassed}
-          onAcceptPlan={handleAcceptPlan}
-          onSaveStack={handleSaveStack}
-          onSelectStack={handleSelectStack}
-          resumeMaterials={resumeMaterials}
-          counselingLogs={counselingLogs}
-        />
-      )}
-      {currentView === 'chat' && (
-        <ChatArea
-          stack={selectedStack}
-          messages={currentMessages}
-          apiKey={apiKey}
-          onSendMessage={handleSendMessage}
-          onSaveWrongNote={handleSaveWrongNote}
-          onSaveResumeMaterial={handleSaveResumeMaterial}
-          goalMinutes={selectedStackId ? (timerGoals[selectedStackId] || 0) : 0}
-          onSaveSession={handleSaveSession}
-        />
-      )}
-      {currentView === 'wrong-notes' && (
-        <WrongNotes
-          wrongNotes={wrongNotes}
-          stacks={stacks}
-          apiKey={apiKey}
-          onDelete={handleDeleteWrongNote}
-        />
-      )}
-      {currentView === 'job-board' && (
-        <JobBoard
-          apiKey={apiKey}
-          stacks={stacks}
-          resumeMaterials={resumeMaterials}
-          onAddToPlan={handleAcceptPlan}
-        />
-      )}
-      {currentView === 'career' && (
-        <Career
-          apiKey={apiKey}
-          resumeMaterials={resumeMaterials}
-          onSaveResumeMaterial={handleSaveResumeMaterial}
-          counselingLogs={counselingLogs}
-          onSaveCounselingLog={handleSaveCounselingLog}
-          onDeleteCounselingLog={handleDeleteCounselingLog}
-        />
-      )}
-      {currentView === 'stack-clash' && (
-        <StackClash stacks={stacks} apiKey={apiKey} onAcceptPlan={handleAcceptPlan} />
-      )}
-      {currentView === 'weak-sniper' && (
-        <WeakPointSniper wrongNotes={wrongNotes} stacks={stacks} apiKey={apiKey} />
-      )}
-      {currentView === 'merge-report' && (
-        <MergeReport
-          stacks={stacks}
-          studyActivity={studyActivity}
-          conversations={conversations}
-          wrongNotes={wrongNotes}
-          streakData={streakData}
-          apiKey={apiKey}
-        />
-      )}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+        <TopNav currentView={currentView} onNavigate={setCurrentView} onOpenSettings={() => setShowApiKey(true)} />
+        {currentView === 'dashboard' && (
+          <Dashboard
+            stacks={stacks}
+            conversations={conversations}
+            wrongNotes={wrongNotes}
+            studyActivity={studyActivity}
+            streakData={streakData}
+            apiKey={apiKey}
+            onMarkPassed={handleMarkPassed}
+            onAcceptPlan={handleAcceptPlan}
+            onSaveStack={handleSaveStack}
+            onSelectStack={handleSelectStack}
+            resumeMaterials={resumeMaterials}
+            counselingLogs={counselingLogs}
+            tasks={tasks}
+            onToggleTask={handleToggleTask}
+          />
+        )}
+        {currentView === 'chat' && (
+          <ChatArea
+            stack={selectedStack}
+            messages={currentMessages}
+            apiKey={apiKey}
+            onSendMessage={handleSendMessage}
+            onSaveWrongNote={handleSaveWrongNote}
+            onSaveResumeMaterial={handleSaveResumeMaterial}
+            goalMinutes={selectedStackId ? (timerGoals[selectedStackId] || 0) : 0}
+            onSaveSession={handleSaveSession}
+          />
+        )}
+        {currentView === 'wrong-notes' && (
+          <WrongNotes
+            wrongNotes={wrongNotes}
+            stacks={stacks}
+            apiKey={apiKey}
+            onDelete={handleDeleteWrongNote}
+          />
+        )}
+        {currentView === 'job-board' && (
+          <JobBoard
+            apiKey={apiKey}
+            stacks={stacks}
+            resumeMaterials={resumeMaterials}
+            onAddToPlan={handleAcceptPlan}
+          />
+        )}
+        {currentView === 'career' && (
+          <Career
+            apiKey={apiKey}
+            resumeMaterials={resumeMaterials}
+            onSaveResumeMaterial={handleSaveResumeMaterial}
+          />
+        )}
+        {currentView === 'tasks' && (
+          <TasksPage
+            tasks={tasks}
+            selectedTaskId={selectedTaskId}
+            onAddTask={handleAddTask}
+            onUpdateTask={handleUpdateTask}
+            onToggleTask={handleToggleTask}
+            onDeleteTask={handleDeleteTask}
+            allTags={tags}
+            onCreateTag={handleCreateTag}
+            onUpdateTag={handleUpdateTag}
+            onDeleteTag={handleDeleteTag}
+          />
+        )}
+        {currentView === 'counseling-log' && (
+          <CounselingPage
+            counselingLogs={counselingLogs}
+            resumeMaterials={resumeMaterials}
+            apiKey={apiKey}
+            onSave={handleSaveCounselingLog}
+            onDelete={handleDeleteCounselingLog}
+          />
+        )}
+        {currentView === 'stack-clash' && (
+          <StackClash stacks={stacks} apiKey={apiKey} onAcceptPlan={handleAcceptPlan} />
+        )}
+        {currentView === 'weak-sniper' && (
+          <WeakPointSniper wrongNotes={wrongNotes} stacks={stacks} apiKey={apiKey} />
+        )}
+        {currentView === 'merge-report' && (
+          <MergeReport
+            stacks={stacks}
+            studyActivity={studyActivity}
+            conversations={conversations}
+            wrongNotes={wrongNotes}
+            streakData={streakData}
+            apiKey={apiKey}
+          />
+        )}
+      </div>
     </div>
   );
 }

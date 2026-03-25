@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { getCareerAdvice, convertMaterialToResume } from '../utils/claude';
 import { storage } from '../utils/storage';
-import CounselingLog from './CounselingLog';
 
 const MATERIALS_KEY = 'mergee_career_materials';
 
@@ -9,7 +8,6 @@ const TABS = [
   { id: 'cover', label: '자기소개서' },
   { id: 'interview', label: '면접 코치' },
   { id: 'materials', label: '자료 보관함' },
-  { id: 'counseling', label: '상담 로그' },
 ];
 
 /* ── Cover Letter ── */
@@ -202,7 +200,7 @@ function MaterialsBank({ materials, onDelete }) {
 }
 
 /* ── Career ── */
-export default function Career({ apiKey, resumeMaterials = [], onSaveResumeMaterial, counselingLogs = [], onSaveCounselingLog, onDeleteCounselingLog }) {
+export default function Career({ apiKey, resumeMaterials = [], onSaveResumeMaterial }) {
   const [tab, setTab] = useState('cover');
   const [materials, setMaterials] = useState(() => storage.get(MATERIALS_KEY, []));
 
@@ -220,8 +218,8 @@ export default function Career({ apiKey, resumeMaterials = [], onSaveResumeMater
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#f8f9fa]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-3.5 flex-shrink-0">
-        <h2 className="font-semibold text-gray-800 text-sm">career</h2>
+      <div className="bg-white border-b border-gray-100 px-6 py-4 flex-shrink-0">
+        <h2 className="text-2xl font-black text-gray-900 tracking-tight">career</h2>
       </div>
 
       {/* Tabs */}
@@ -233,9 +231,6 @@ export default function Career({ apiKey, resumeMaterials = [], onSaveResumeMater
             {t.id === 'materials' && materials.length > 0 && (
               <span className="ml-1.5 text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{materials.length}</span>
             )}
-            {t.id === 'counseling' && counselingLogs.length > 0 && (
-              <span className="ml-1.5 text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{counselingLogs.length}</span>
-            )}
           </button>
         ))}
       </div>
@@ -245,15 +240,6 @@ export default function Career({ apiKey, resumeMaterials = [], onSaveResumeMater
         {tab === 'cover' && <CoverLetter apiKey={apiKey} onSave={saveMaterial} resumeMaterials={resumeMaterials} />}
         {tab === 'interview' && <InterviewCoach apiKey={apiKey} onSave={saveMaterial} />}
         {tab === 'materials' && <MaterialsBank materials={materials} onDelete={deleteMaterial} />}
-        {tab === 'counseling' && (
-          <CounselingLog
-            logs={counselingLogs}
-            resumeMaterials={resumeMaterials}
-            apiKey={apiKey}
-            onSave={onSaveCounselingLog}
-            onDelete={onDeleteCounselingLog}
-          />
-        )}
       </div>
     </div>
   );

@@ -4,22 +4,23 @@ import DailyPlan from './DailyPlan';
 import EmploymentTemperature from './EmploymentTemperature';
 
 /* ─────────────────────────────────────────
-   EXAM ROADMAP — flex spacer timeline (no absolute on markers)
+   ROADMAP — flex spacer timeline
 ───────────────────────────────────────────*/
-function ExamRoadmap({ stacks }) {
+function Roadmap({ stacks, tasks = [] }) {
   const [tooltip, setTooltip] = useState(null);
   const sorted = [...stacks]
     .filter((s) => s.examDate && !s.passed)
     .sort((a, b) => new Date(a.examDate) - new Date(b.examDate));
-  if (!sorted.length) return null;
 
-  const ABOVE_H = 84;   // fixed above-line zone height (px)
-  const DOT_D   = 12;   // dot diameter (px)
-  const BELOW_H = 56;   // fixed below-line zone height (px)
-  const MARKER_W = 80;  // each marker column width (px)
-  const MIN_SPACER = 80; // minimum spacer width between markers (px)
-  const EDGE_PAD = 16;  // left/right padding (px)
-  const LINE_Y = ABOVE_H + DOT_D / 2; // track line Y from container top
+  const activeTasks = (tasks || []).filter(t => !t.done && t.dueDate);
+
+  const ABOVE_H = 84;
+  const DOT_D   = 12;
+  const BELOW_H = 56;
+  const MARKER_W = 80;
+  const MIN_SPACER = 80;
+  const EDGE_PAD = 16;
+  const LINE_Y = ABOVE_H + DOT_D / 2;
   const TOTAL_H = ABOVE_H + DOT_D + BELOW_H;
 
   const dotColor = (dday) => {
@@ -29,12 +30,17 @@ function ExamRoadmap({ stacks }) {
     return null;
   };
 
-  // Days from today to each exam, then gaps between consecutive exams
-  const ddays = sorted.map((s) => Math.max(0, getDday(s.examDate) || 0));
+  const allItems = [
+    ...sorted.map(s => ({ type: 'stack', data: s, dday: Math.max(0, getDday(s.examDate) || 0), color: dotColor(getDday(s.examDate)) || s.color })),
+    ...activeTasks.map(t => ({ type: 'task', data: t, dday: Math.max(0, getDday(t.dueDate) || 0), color: t.color })),
+  ].sort((a, b) => a.dday - b.dday);
+
+  if (!allItems.length) return null;
+
+  const ddays = allItems.map((item) => item.dday);
   const gapDays = [ddays[0], ...ddays.slice(1).map((d, i) => Math.max(1, d - ddays[i]))];
 
-  // minWidth: one spacer + one marker per exam, plus edge padding
-  const innerMinW = sorted.length * (MARKER_W + MIN_SPACER) + 2 * EDGE_PAD;
+  const innerMinW = allItems.length * (MARKER_W + MIN_SPACER) + 2 * EDGE_PAD;
 
   return (
     <div style={{ overflowX: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}>
@@ -50,27 +56,25 @@ function ExamRoadmap({ stacks }) {
           boxSizing: 'border-box',
         }}
       >
-        {/* Track line — decorative absolute element, not a marker */}
+        {/* Track line */}
         <div style={{ position: 'absolute', left: 0, right: 0, top: LINE_Y + 'px', height: '1px', backgroundColor: '#e5e7eb' }} />
         {/* Today label */}
         <span style={{ position: 'absolute', left: EDGE_PAD + 'px', top: (LINE_Y + 8) + 'px', fontSize: '10px', color: '#9ca3af', fontWeight: 500 }}>today</span>
-        {/* End date label */}
-        <span style={{ position: 'absolute', right: EDGE_PAD + 'px', top: (LINE_Y + 8) + 'px', fontSize: '10px', color: '#9ca3af', fontWeight: 500 }}>
-          {new Date(sorted[sorted.length - 1].examDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-        </span>
 
-        {sorted.map((s, i) => {
-          const dday = getDday(s.examDate);
+        {allItems.map((item, i) => {
+          const dday = item.type === 'stack' ? getDday(item.data.examDate) : getDday(item.data.dueDate);
           const urgent = dday !== null && dday <= 12;
-          const color = dotColor(dday) || s.color;
-          const prob = calcPassProb({ ...s });
+          const color = item.color;
+          const prob = item.type === 'stack' ? calcPassProb({ ...item.data }) : null;
+          const label = item.data.name;
+          const dateStr = item.type === 'stack' ? item.data.examDate : item.data.dueDate;
 
           return (
-            <React.Fragment key={s.id}>
-              {/* Proportional spacer before this marker */}
+            <React.Fragment key={item.type + '-' + item.data.id}>
+              {/* Proportional spacer */}
               <div style={{ flexGrow: gapDays[i], minWidth: MIN_SPACER + 'px', flexShrink: 0 }} />
 
-              {/* Marker column — flex, not absolutely positioned */}
+              {/* Marker column */}
               <div
                 style={{
                   flexShrink: 0,
@@ -81,42 +85,60 @@ function ExamRoadmap({ stacks }) {
                   position: 'relative',
                   cursor: 'default',
                 }}
-                onMouseEnter={() => setTooltip({ id: s.id, prob })}
+                onMouseEnter={() => setTooltip({ id: item.data.id, prob, type: item.type })}
                 onMouseLeave={() => setTooltip(null)}
               >
-                {/* Above zone: fixed height, content anchored to bottom */}
+                {/* Above zone */}
                 <div style={{ height: ABOVE_H + 'px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: '8px', gap: '2px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 900, color, lineHeight: 1.2, textAlign: 'center' }}>
                     {formatDday(dday)}
                   </span>
                   <span style={{ fontSize: '10px', fontWeight: 600, color: '#374151', lineHeight: 1.3, textAlign: 'center', wordBreak: 'keep-all', maxWidth: '80px' }}>
-                    {s.name}
+                    {label}
                   </span>
-                  {urgent && (
+                  {item.type === 'task' && (
+                    <span style={{ fontSize: '9px', fontWeight: 700, color: color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>task</span>
+                  )}
+                  {item.type === 'stack' && urgent && (
                     <span style={{ fontSize: '9px', fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>urgent</span>
                   )}
                 </div>
 
-                {/* Dot — sits exactly on the track line */}
-                <div style={{ width: DOT_D + 'px', height: DOT_D + 'px', borderRadius: '50%', backgroundColor: color, flexShrink: 0, position: 'relative', zIndex: 1, boxShadow: urgent ? `0 0 0 3px ${color}30` : 'none' }} />
+                {/* Dot — on the track line */}
+                {item.type === 'task' ? (
+                  <div style={{ width: DOT_D + 'px', height: DOT_D + 'px', backgroundColor: color, flexShrink: 0, position: 'relative', zIndex: 1, transform: 'rotate(45deg)' }} />
+                ) : (
+                  <div style={{ width: DOT_D + 'px', height: DOT_D + 'px', borderRadius: '50%', backgroundColor: color, flexShrink: 0, position: 'relative', zIndex: 1, boxShadow: urgent ? `0 0 0 3px ${color}30` : 'none' }} />
+                )}
 
-                {/* Below zone: fixed height */}
+                {/* Below zone */}
                 <div style={{ height: BELOW_H + 'px', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '6px', gap: '3px' }}>
                   <span style={{ fontSize: '10px', color: '#9ca3af', whiteSpace: 'nowrap' }}>
-                    {new Date(s.examDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                    {new Date(dateStr).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                   </span>
-                  <div style={{ width: '48px', height: '2px', backgroundColor: '#f3f4f6', borderRadius: '9999px', overflow: 'hidden' }}>
-                    <div style={{ width: (s.progress || 0) + '%', height: '100%', backgroundColor: color, borderRadius: '9999px' }} />
-                  </div>
-                  <span style={{ fontSize: '9px', color: '#9ca3af' }}>{s.progress || 0}%</span>
+                  {item.type === 'stack' && (
+                    <>
+                      <div style={{ width: '48px', height: '2px', backgroundColor: '#f3f4f6', borderRadius: '9999px', overflow: 'hidden' }}>
+                        <div style={{ width: (item.data.progress || 0) + '%', height: '100%', backgroundColor: color, borderRadius: '9999px' }} />
+                      </div>
+                      <span style={{ fontSize: '9px', color: '#9ca3af' }}>{item.data.progress || 0}%</span>
+                    </>
+                  )}
                 </div>
 
-                {/* Tooltip (floating, uses absolute only within this relative container) */}
-                {tooltip?.id === s.id && (
+                {/* Tooltip */}
+                {tooltip?.id === item.data.id && (
                   <div style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '8px', zIndex: 20, backgroundColor: '#111827', color: '#fff', borderRadius: '12px', padding: '8px 12px', fontSize: '10px', whiteSpace: 'nowrap', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', pointerEvents: 'none' }}>
-                    <div style={{ fontWeight: 700, marginBottom: '2px' }}>{s.name}</div>
-                    <div style={{ color: '#d1d5db' }}>진도 {s.progress || 0}%</div>
-                    <div style={{ color: '#d1d5db' }}>합격 확률 ~{prob}%</div>
+                    <div style={{ fontWeight: 700, marginBottom: '2px' }}>{label}</div>
+                    {item.type === 'stack' && (
+                      <>
+                        <div style={{ color: '#d1d5db' }}>진도 {item.data.progress || 0}%</div>
+                        <div style={{ color: '#d1d5db' }}>합격 확률 ~{prob}%</div>
+                      </>
+                    )}
+                    {item.type === 'task' && (
+                      <div style={{ color: '#d1d5db' }}>task · {formatDday(dday)}</div>
+                    )}
                   </div>
                 )}
               </div>
@@ -141,7 +163,6 @@ function DdayCard({ stack, streakData, onMarkPassed, onSaveStack }) {
   const style = getDdayCardStyle(dday);
   const prob = calcPassProb({ ...stack, streak: streakData?.count });
 
-  // Close on outside click
   useEffect(() => {
     if (!editing) return;
     const close = (e) => {
@@ -167,7 +188,6 @@ function DdayCard({ stack, streakData, onMarkPassed, onSaveStack }) {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => { setHover(false); }}
     >
-      {/* Edit icon — appears on hover */}
       <button
         onClick={(e) => { e.stopPropagation(); setForm({ examDate: stack.examDate || '', progress: stack.progress || 0 }); setEditing(true); }}
         className={`absolute top-3 right-3 w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-white/60 transition-all duration-150 ${hover || editing ? 'opacity-100' : 'opacity-0'}`}
@@ -177,7 +197,6 @@ function DdayCard({ stack, streakData, onMarkPassed, onSaveStack }) {
         </svg>
       </button>
 
-      {/* Card content */}
       <div className="flex items-center gap-1.5 mb-2">
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stack.color }} />
         <span className="text-xs font-bold text-gray-700 truncate pr-6">{stack.name}</span>
@@ -209,7 +228,6 @@ function DdayCard({ stack, streakData, onMarkPassed, onSaveStack }) {
         mark as merged ✓
       </button>
 
-      {/* Edit mini-modal */}
       {editing && (
         <div
           ref={panelRef}
@@ -259,7 +277,40 @@ function DdayCard({ stack, streakData, onMarkPassed, onSaveStack }) {
 }
 
 /* ─────────────────────────────────────────
-   STUDY HEATMAP — full-width with labels
+   TASK CARD
+───────────────────────────────────────────*/
+function TaskCard({ task, onToggle }) {
+  const dday = getDday(task.dueDate);
+  const style = getDdayCardStyle(dday);
+  return (
+    <div
+      className="relative rounded-2xl p-4"
+      style={{ background: style.bg, borderLeft: `3px solid ${task.color}`, border: '0.5px solid ' + style.border }}
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">task</span>
+        <span className="text-xs font-bold text-gray-700 truncate">{task.name}</span>
+      </div>
+      <div className="text-2xl font-black mb-0.5" style={{ color: style.text }}>
+        {dday !== null ? formatDday(dday) : '—'}
+      </div>
+      {task.dueDate && (
+        <div className="text-[11px] text-gray-500 mb-3">
+          {new Date(task.dueDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+        </div>
+      )}
+      <button
+        onClick={() => onToggle(task.id)}
+        className="w-full text-[11px] py-1.5 rounded-lg border border-black/8 text-gray-400 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white/50"
+      >
+        완료 처리 ✓
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   STUDY HEATMAP
 ───────────────────────────────────────────*/
 function StudyHeatmap({ studyActivity }) {
   const WEEKS = 26;
@@ -271,7 +322,6 @@ function StudyHeatmap({ studyActivity }) {
   const todayStr = today.toISOString().split('T')[0];
   const total = WEEKS * 7;
 
-  // Build all days
   const allDays = Array.from({ length: total }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - (total - 1 - i));
@@ -279,14 +329,12 @@ function StudyHeatmap({ studyActivity }) {
     return { key, date: new Date(d), count: studyActivity[key] || 0 };
   });
 
-  // Pad to start on Sunday
   const startDow = allDays[0].date.getDay();
   const padded = [...Array(startDow).fill(null), ...allDays];
 
   const weeks = [];
   for (let i = 0; i < padded.length; i += 7) weeks.push(padded.slice(i, i + 7));
 
-  // Month label per week
   const monthLabels = weeks.map((week, wi) => {
     const days = week.filter(Boolean);
     if (!days.length) return null;
@@ -298,7 +346,6 @@ function StudyHeatmap({ studyActivity }) {
     return null;
   });
 
-  // Count active days this year
   const thisYear = today.getFullYear().toString();
   const yearActiveDays = Object.entries(studyActivity)
     .filter(([k, v]) => k.startsWith(thisYear) && v > 0).length;
@@ -333,7 +380,6 @@ function StudyHeatmap({ studyActivity }) {
       </div>
 
       <div className="flex gap-1.5">
-        {/* Day-of-week labels */}
         <div className="flex flex-col flex-shrink-0" style={{ marginTop: '18px', gap: '3px' }}>
           {DOW_LABELS.map((l, i) => (
             <div key={i} style={{ height: '14px' }} className="flex items-center justify-end pr-1.5">
@@ -344,15 +390,12 @@ function StudyHeatmap({ studyActivity }) {
           ))}
         </div>
 
-        {/* Scrollable grid */}
         <div
           ref={scrollRef}
           className="flex-1 overflow-x-auto"
           style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}
         >
-          {/* Month labels + cells in one scroll region */}
           <div style={{ display: 'inline-flex', flexDirection: 'column' }}>
-            {/* Month labels */}
             <div className="flex mb-1" style={{ gap: GAP + 'px' }}>
               {weeks.map((_, wi) => (
                 <div key={wi} style={{ width: CELL_W + 'px', flexShrink: 0 }} className="h-4 flex items-end">
@@ -363,7 +406,6 @@ function StudyHeatmap({ studyActivity }) {
               ))}
             </div>
 
-            {/* Cells */}
             <div className="flex" style={{ gap: GAP + 'px' }}>
               {weeks.map((week, wi) => (
                 <div key={wi} className="flex flex-col" style={{ width: CELL_W + 'px', flexShrink: 0, gap: GAP + 'px' }}>
@@ -387,7 +429,6 @@ function StudyHeatmap({ studyActivity }) {
         </div>
       </div>
 
-      {/* Legend */}
       <div className="flex items-center justify-end gap-1.5 mt-2">
         <span className="text-[9px] text-gray-300">less</span>
         {[0, 2, 5, 9, 13].map((n) => (
@@ -415,9 +456,22 @@ export default function Dashboard({
   onSelectStack,
   resumeMaterials,
   counselingLogs,
+  tasks = [],
+  onToggleTask,
 }) {
   const activeStacks = stacks.filter((s) => !s.passed);
   const passedStacks = stacks.filter((s) => s.passed);
+
+  const activeTasks = (tasks || []).filter(t => !t.done && t.dueDate);
+
+  const allDdayItems = [
+    ...activeStacks.map(s => ({ type: 'stack', data: s, dday: getDday(s.examDate) })),
+    ...activeTasks.map(t => ({ type: 'task', data: t, dday: getDday(t.dueDate) })),
+  ].sort((a, b) => {
+    const da = a.dday ?? 9999;
+    const db = b.dday ?? 9999;
+    return da - db;
+  });
 
   return (
     <div
@@ -434,16 +488,15 @@ export default function Dashboard({
 
       {/* ── TOP 2-COL: Today's Plan (70%) + Merge Temperature (30%) ── */}
       <div className="flex gap-5 items-stretch">
-        {/* Today's Plan — 70% */}
         <div className="flex-[7] min-w-0">
           <DailyPlan
             stacks={stacks}
             apiKey={apiKey}
             onAcceptPlan={onAcceptPlan}
             onNavigateToStack={onSelectStack}
+            tasks={tasks}
           />
         </div>
-        {/* Merge Temperature — 30% */}
         <div className="flex-[3] min-w-0">
           <EmploymentTemperature
             stacks={stacks}
@@ -455,49 +508,27 @@ export default function Dashboard({
       </div>
 
       {/* ── D-DAY CARDS ── */}
-      {activeStacks.length > 0 && (
+      {allDdayItems.length > 0 && (
         <div>
           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">d-day</p>
-          {activeStacks.length <= 5 ? (
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 280px))' }}>
-              {activeStacks.map((stack) => (
-                <DdayCard
-                  key={stack.id}
-                  stack={stack}
-                  streakData={streakData}
-                  onMarkPassed={onMarkPassed}
-                  onSaveStack={onSaveStack}
-                />
-              ))}
-            </div>
-          ) : (
-            <div
-              className="flex gap-3 overflow-x-auto pb-2"
-              style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}
-            >
-              {activeStacks.map((stack) => (
-                <div key={stack.id} style={{ minWidth: '220px', maxWidth: '220px', flexShrink: 0 }}>
-                  <DdayCard
-                    stack={stack}
-                    streakData={streakData}
-                    onMarkPassed={onMarkPassed}
-                    onSaveStack={onSaveStack}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+            {allDdayItems.map(item => (
+              item.type === 'stack'
+                ? <DdayCard key={'stack-' + item.data.id} stack={item.data} streakData={streakData} onMarkPassed={onMarkPassed} onSaveStack={onSaveStack} />
+                : <TaskCard key={'task-' + item.data.id} task={item.data} onToggle={onToggleTask} />
+            ))}
+          </div>
         </div>
       )}
 
-      {/* ── EXAM ROADMAP ── */}
-      {activeStacks.some((s) => s.examDate) && (
+      {/* ── ROADMAP ── */}
+      {(activeStacks.some((s) => s.examDate) || activeTasks.length > 0) && (
         <div
           className="rounded-2xl p-6"
           style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.06)' }}
         >
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">exam roadmap</p>
-          <ExamRoadmap stacks={activeStacks} />
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">roadmap</p>
+          <Roadmap stacks={activeStacks} tasks={tasks} />
         </div>
       )}
 

@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { storage } from '../utils/storage';
-import { analyzeJobPostingFull, getJobFitActions } from '../utils/claude';
+import { analyzeJobPostingFull, getJobFitActions, getCareerAdvice } from '../utils/claude';
 import FitAnalysisPanel from './FitAnalysisPanel';
+
+const JOB_COVERS_KEY = 'mergee_job_covers';
 
 const STATUSES = ['지원예정', '지원완료', '서류합격', '면접', '최종합격', '불합격'];
 
@@ -189,6 +191,28 @@ function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, a
   const days = getDays(job.deadline);
   const urgent = days !== null && days <= 3;
 
+  const [spTab, setSpTab] = useState('info'); // 'info' | 'fit' | 'cover'
+  const [covers, setCovers] = useState(() => storage.get(JOB_COVERS_KEY, {}));
+  const [coverText, setCoverText] = useState(covers[job.id]?.text || '');
+  const [coverFeedback, setCoverFeedback] = useState('');
+  const [coverLoading, setCoverLoading] = useState(false);
+
+  const saveCover = () => {
+    const updated = { ...covers, [job.id]: { text: coverText, updatedAt: new Date().toISOString() } };
+    setCovers(updated);
+    storage.set(JOB_COVERS_KEY, updated);
+  };
+
+  const requestFeedback = async () => {
+    if (!coverText.trim()) return;
+    setCoverLoading(true);
+    try {
+      const result = await getCareerAdvice(apiKey, 'cover', { company: job.company, position: job.position, background: coverText });
+      setCoverFeedback(result);
+    } catch (e) { setCoverFeedback('오류: ' + e.message); }
+    finally { setCoverLoading(false); }
+  };
+
   return (
     <>
       <div className="fixed inset-0 z-20" onClick={onClose} />
@@ -204,45 +228,112 @@ function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, a
           </button>
         </div>
 
+        {/* Tab bar */}
+        <div className="px-6 border-b border-gray-100 flex gap-1 flex-shrink-0">
+          {[{ id: 'info', label: '정보' }, { id: 'fit', label: 'Fit 분석' }, { id: 'cover', label: '자소서' }].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setSpTab(t.id)}
+              className={`py-2.5 px-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${spTab === t.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-700'}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {/* Panel body */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-          {/* Meta */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_STYLE[job.status]}`}>{job.status}</span>
-            {days !== null && (
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${urgent ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
-                {days < 0 ? '마감' : days === 0 ? 'D-day' : 'D-' + days}
-                {job.deadline && ' · ' + new Date(job.deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-              </span>
-            )}
-            {job.fitScore != null && (
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
-                적합도 {job.fitScore}%
-              </span>
-            )}
-          </div>
-
-          {/* Fit Analysis Panel (replaces old score bar + gap analysis) */}
-          <FitAnalysisPanel
-            job={job}
-            stacks={stacks}
-            resumeMaterials={resumeMaterials}
-            apiKey={apiKey}
-            onAddToPlan={onAddToPlan}
-          />
-
-          {/* Notes */}
-          {job.notes && (
-            <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">공고 내용</p>
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 max-h-40 overflow-y-auto">
-                <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap">{job.notes}</p>
+          {spTab === 'info' && (
+            <>
+              {/* Meta */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_STYLE[job.status]}`}>{job.status}</span>
+                {days !== null && (
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${urgent ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                    {days < 0 ? '마감' : days === 0 ? 'D-day' : 'D-' + days}
+                    {job.deadline && ' · ' + new Date(job.deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+                {job.fitScore != null && (
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
+                    적합도 {job.fitScore}%
+                  </span>
+                )}
               </div>
-            </div>
+
+              {/* Notes */}
+              {job.notes && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">공고 내용</p>
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 max-h-40 overflow-y-auto">
+                    <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap">{job.notes}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Job Fit Actions */}
+              <JobFitActions job={job} stacks={stacks} apiKey={apiKey} />
+            </>
           )}
 
-          {/* Job Fit Actions */}
-          <JobFitActions job={job} stacks={stacks} apiKey={apiKey} />
+          {spTab === 'fit' && (
+            <>
+              <div className="flex items-center gap-3 flex-wrap">
+                {job.fitScore != null && (
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
+                    적합도 {job.fitScore}%
+                  </span>
+                )}
+              </div>
+              <FitAnalysisPanel
+                job={job}
+                stacks={stacks}
+                resumeMaterials={resumeMaterials}
+                apiKey={apiKey}
+                onAddToPlan={onAddToPlan}
+              />
+            </>
+          )}
+
+          {spTab === 'cover' && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">자기소개서</p>
+              <textarea
+                value={coverText}
+                onChange={(e) => setCoverText(e.target.value)}
+                placeholder="이 공고에 대한 자기소개서를 작성하세요..."
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                rows={8}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={saveCover}
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                >
+                  저장
+                </button>
+                <button
+                  onClick={requestFeedback}
+                  disabled={coverLoading || !coverText.trim()}
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+                >
+                  {coverLoading ? (
+                    <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />첨삭 중...</>
+                  ) : 'AI 첨삭'}
+                </button>
+              </div>
+              {covers[job.id]?.updatedAt && (
+                <p className="text-[10px] text-gray-400">마지막 저장: {new Date(covers[job.id].updatedAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+              )}
+              {coverFeedback && (
+                <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
+                  <p className="text-xs font-semibold text-indigo-600 mb-2">AI 첨삭 결과</p>
+                  <pre className="text-xs text-indigo-800 leading-relaxed whitespace-pre-wrap font-sans">{coverFeedback}</pre>
+                  <button onClick={() => setCoverFeedback('')} className="text-[10px] text-indigo-400 hover:text-indigo-600 mt-2 transition-colors">닫기</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Panel footer */}
@@ -264,7 +355,7 @@ function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, a
 /* ── Main JobBoard ── */
 export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], onAddToPlan }) {
   const [jobs, setJobs] = useState(() => storage.get(JOB_KEY, []));
-  const [filter, setFilter] = useState('전체');
+  const [filter, setFilter] = useState('지원예정');
   const [showModal, setShowModal] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);

@@ -7,6 +7,8 @@ export const KEYS = {
   STREAK: 'mergee_streak',
   RESUME_MATERIALS: 'mergee_resume_materials',
   COUNSELING_LOGS: 'mergee_counseling_logs',
+  TASKS: 'mergee_tasks',
+  TAGS: 'mergee_tags',
 };
 
 export const storage = {
