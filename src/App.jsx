@@ -15,7 +15,8 @@ import ConfettiEffect from './components/ConfettiEffect';
 import TopNav from './components/TopNav';
 import CounselingPage from './components/CounselingPage';
 import TasksPage from './components/TasksPage';
-import { storage, KEYS } from './utils/storage';
+import { storage, KEYS, pullFromSupabase } from './utils/storage';
+import { hasSupabase } from './utils/supabase';
 import { extractWrongNote } from './utils/claude';
 import { getTodayStr } from './utils/helpers';
 
@@ -81,11 +82,30 @@ export default function App() {
   const [wrongNotes, setWrongNotes] = useState(() => storage.get(KEYS.WRONG_NOTES, []));
   const [studyActivity, setStudyActivity] = useState(() => storage.get(KEYS.STUDY_ACTIVITY, {}));
   const [streakData, setStreakData] = useState(() => storage.get(KEYS.STREAK, { count: 0, lastDate: null }));
-  const [timerGoals, setTimerGoals] = useState(() => storage.get('mergee_timer_goals', {}));
+  const [timerGoals, setTimerGoals] = useState(() => storage.get(KEYS.TIMER_GOALS, {}));
   const [resumeMaterials, setResumeMaterials] = useState(() => storage.get(KEYS.RESUME_MATERIALS, []));
   const [counselingLogs, setCounselingLogs] = useState(() => storage.get(KEYS.COUNSELING_LOGS, []));
   const [tasks, setTasks] = useState(() => storage.get(KEYS.TASKS, []));
   const [tags, setTags] = useState(() => storage.get(KEYS.TAGS, []));
+
+  /* ─── Supabase bootstrap: pull remote data on first load ─── */
+  useEffect(() => {
+    if (!hasSupabase) return;
+    pullFromSupabase().then(() => {
+      // Re-hydrate state from localStorage after remote pull
+      setStacks(storage.get(KEYS.STACKS, INITIAL_STACKS));
+      setConversations(storage.get(KEYS.CONVERSATIONS, {}));
+      setWrongNotes(storage.get(KEYS.WRONG_NOTES, []));
+      setStudyActivity(storage.get(KEYS.STUDY_ACTIVITY, {}));
+      setStreakData(storage.get(KEYS.STREAK, { count: 0, lastDate: null }));
+      setTimerGoals(storage.get(KEYS.TIMER_GOALS, {}));
+      setResumeMaterials(storage.get(KEYS.RESUME_MATERIALS, []));
+      setCounselingLogs(storage.get(KEYS.COUNSELING_LOGS, []));
+      setTasks(storage.get(KEYS.TASKS, []));
+      setTags(storage.get(KEYS.TAGS, []));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ─── Landing / UI state ─── */
   const [started, setStarted] = useState(() => !!storage.get(KEYS.API_KEY, ''));
@@ -104,7 +124,7 @@ export default function App() {
   useEffect(() => { storage.set(KEYS.WRONG_NOTES, wrongNotes); }, [wrongNotes]);
   useEffect(() => { storage.set(KEYS.STUDY_ACTIVITY, studyActivity); }, [studyActivity]);
   useEffect(() => { storage.set(KEYS.STREAK, streakData); }, [streakData]);
-  useEffect(() => { storage.set('mergee_timer_goals', timerGoals); }, [timerGoals]);
+  useEffect(() => { storage.set(KEYS.TIMER_GOALS, timerGoals); }, [timerGoals]);
   useEffect(() => { storage.set(KEYS.RESUME_MATERIALS, resumeMaterials); }, [resumeMaterials]);
   useEffect(() => { storage.set(KEYS.COUNSELING_LOGS, counselingLogs); }, [counselingLogs]);
   useEffect(() => { storage.set(KEYS.TASKS, tasks); }, [tasks]);

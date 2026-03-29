@@ -1,3 +1,5 @@
+import { supabase, hasSupabase } from './supabase';
+
 export const KEYS = {
   API_KEY: 'mergee_api_key',
   STACKS: 'mergee_stacks',
@@ -9,7 +11,18 @@ export const KEYS = {
   COUNSELING_LOGS: 'mergee_counseling_logs',
   TASKS: 'mergee_tasks',
   TAGS: 'mergee_tags',
+  TIMER_GOALS: 'mergee_timer_goals',
+  QUICK_LINKS: 'mergee_quick_links',
+  USER_ID: 'mergee_user_id',
 };
+
+// Keys that are synced to Supabase (exclude sensitive API key)
+const SYNCED_KEYS = new Set([
+  KEYS.STACKS, KEYS.CONVERSATIONS, KEYS.WRONG_NOTES,
+  KEYS.STUDY_ACTIVITY, KEYS.STREAK, KEYS.RESUME_MATERIALS,
+  KEYS.COUNSELING_LOGS, KEYS.TASKS, KEYS.TAGS,
+  KEYS.TIMER_GOALS, KEYS.QUICK_LINKS,
+]);
 
 export const storage = {
   get: (key, defaultValue = null) => {
@@ -26,8 +39,40 @@ export const storage = {
     } catch (e) {
       console.error('Storage write error:', e);
     }
+    // Fire-and-forget sync to Supabase
+    if (hasSupabase && SYNCED_KEYS.has(key)) {
+      const userId = storage.getUserId();
+      supabase
+        .from('mergee_data')
+        .upsert({ user_id: userId, key, value, updated_at: new Date().toISOString() })
+        .then(({ error }) => { if (error) console.warn('Supabase sync error:', error.message); });
+    }
   },
   remove: (key) => {
     try { localStorage.removeItem(key); } catch {}
   },
+  getUserId: () => {
+    let id = localStorage.getItem(KEYS.USER_ID);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(KEYS.USER_ID, id);
+    }
+    return id;
+  },
 };
+
+// Pull all data from Supabase and populate localStorage
+export async function pullFromSupabase() {
+  if (!hasSupabase) return;
+  const userId = storage.getUserId();
+  const { data, error } = await supabase
+    .from('mergee_data')
+    .select('key, value')
+    .eq('user_id', userId);
+  if (error) { console.warn('Supabase pull error:', error.message); return; }
+  for (const row of data) {
+    if (row.value !== null) {
+      localStorage.setItem(row.key, JSON.stringify(row.value));
+    }
+  }
+}
