@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getDday, formatDday, getDdayCardStyle, calcPassProb } from '../utils/helpers';
 import DailyPlan from './DailyPlan';
 import EmploymentTemperature from './EmploymentTemperature';
+import DailyLogCalendar from './DailyLogCalendar';
 
 /* ─────────────────────────────────────────
    ROADMAP — flex spacer timeline
@@ -486,24 +487,33 @@ export default function Dashboard({
         </p>
       </div>
 
-      {/* ── TOP 2-COL: Today's Plan (70%) + Merge Temperature (30%) ── */}
-      <div className="flex gap-5 items-stretch">
-        <div className="flex-[7] min-w-0">
-          <DailyPlan
-            stacks={stacks}
-            apiKey={apiKey}
-            onAcceptPlan={onAcceptPlan}
-            onNavigateToStack={onSelectStack}
-            tasks={tasks}
-          />
+      {/* ── TOP 2-COL: Daily Log (65%) + Right panel (35%) ── */}
+      <div className="flex gap-5 items-stretch" style={{ minHeight: '520px' }}>
+        {/* Left 65%: Daily Log */}
+        <div className="min-w-0" style={{ flex: '65' }}>
+          <DailyLogCalendar tasks={tasks} stacks={stacks} compact />
         </div>
-        <div className="flex-[3] min-w-0">
-          <EmploymentTemperature
-            stacks={stacks}
-            resumeMaterials={resumeMaterials}
-            streakData={streakData}
-            counselingLogs={counselingLogs}
-          />
+
+        {/* Right 35%: Today's Plan (compact) + Merge Temperature */}
+        <div className="min-w-0 flex flex-col gap-4" style={{ flex: '35' }}>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <DailyPlan
+              stacks={stacks}
+              apiKey={apiKey}
+              onAcceptPlan={onAcceptPlan}
+              onNavigateToStack={onSelectStack}
+              tasks={tasks}
+              compact
+            />
+          </div>
+          <div className="flex-shrink-0">
+            <EmploymentTemperature
+              stacks={stacks}
+              resumeMaterials={resumeMaterials}
+              streakData={streakData}
+              counselingLogs={counselingLogs}
+            />
+          </div>
         </div>
       </div>
 

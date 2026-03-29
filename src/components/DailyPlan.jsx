@@ -45,7 +45,7 @@ const SkeletonRow = () => (
   </div>
 );
 
-export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToStack, tasks = [] }) {
+export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToStack, tasks = [], compact = false }) {
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -233,9 +233,9 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
   const activeTasks = (tasks || []).filter(t => !t.done);
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm">
+    <div className={`bg-white rounded-2xl flex flex-col ${compact ? 'p-4 h-full' : 'p-5 shadow-sm'}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className={`flex items-center justify-between ${compact ? 'mb-3' : 'mb-4'}`}>
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
             today's plan
@@ -287,7 +287,8 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
             : 'No plan generated yet.'}
         </div>
       ) : (
-        <div>
+        <div className={`${compact ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : ''}`}>
+          <div className={compact ? 'overflow-y-auto' : ''} style={compact ? { maxHeight: '220px' } : {}}>
           {plan.map((item, i) => {
             const pStyle = PRIORITY_STYLES[item.priority] || PRIORITY_STYLES.low;
             const isDone = done.has(i);
@@ -409,8 +410,9 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
             );
           })}
 
+          </div>{/* end scroll container */}
           {/* Control buttons */}
-          <div className="flex gap-2 mt-3 mb-2">
+          {!compact && <div className="flex gap-2 mt-3 mb-2">
             <button
               onClick={() => setShowManualAdd((v) => !v)}
               className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors font-medium"
@@ -441,10 +443,10 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
                 )}
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Manual add form */}
-          {showManualAdd && (
+          {!compact && showManualAdd && (
             <div className="mb-3 p-3 bg-gray-50 rounded-xl space-y-2">
               <div className="flex gap-2">
                 <input
@@ -493,13 +495,13 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
           )}
 
           {/* Accept / Accepted button */}
-          <div className="mt-4">
+          <div className={compact ? 'mt-2' : 'mt-4'}>
             {accepted ? (
               <button
                 disabled
-                className="w-full py-2.5 rounded-xl text-sm font-semibold bg-green-50 text-green-600 cursor-default flex items-center justify-center gap-1.5"
+                className={`w-full rounded-xl font-semibold bg-green-50 text-green-600 cursor-default flex items-center justify-center gap-1.5 ${compact ? 'py-1.5 text-xs' : 'py-2.5 text-sm'}`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
                 plan set
@@ -507,7 +509,7 @@ export default function DailyPlan({ stacks, apiKey, onAcceptPlan, onNavigateToSt
             ) : (
               <button
                 onClick={handleAccept}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all duration-150 active:scale-95 hover:scale-[1.01]"
+                className={`w-full rounded-xl font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all duration-150 active:scale-95 ${compact ? 'py-1.5 text-xs' : 'py-2.5 text-sm hover:scale-[1.01]'}`}
               >
                 accept plan
               </button>

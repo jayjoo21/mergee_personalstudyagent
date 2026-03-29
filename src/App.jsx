@@ -15,6 +15,7 @@ import ConfettiEffect from './components/ConfettiEffect';
 import TopNav from './components/TopNav';
 import CounselingPage from './components/CounselingPage';
 import TasksPage from './components/TasksPage';
+import DailyLogCalendar from './components/DailyLogCalendar';
 import { storage, KEYS, pullFromSupabase, setAuthUserId } from './utils/storage';
 import { supabase, hasSupabase } from './utils/supabase';
 import { extractWrongNote } from './utils/claude';
@@ -494,6 +495,9 @@ export default function App() {
             goalMinutes={selectedStackId ? (timerGoals[selectedStackId] || 0) : 0}
             onSaveSession={handleSaveSession}
           />
+        )}
+        {currentView === 'daily-log' && (
+          <DailyLogCalendar tasks={tasks} stacks={stacks} />
         )}
         {currentView === 'wrong-notes' && (
           <WrongNotes
