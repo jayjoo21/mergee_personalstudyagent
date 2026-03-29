@@ -15,10 +15,11 @@ import ConfettiEffect from './components/ConfettiEffect';
 import TopNav from './components/TopNav';
 import CounselingPage from './components/CounselingPage';
 import TasksPage from './components/TasksPage';
-import { storage, KEYS, pullFromSupabase } from './utils/storage';
-import { hasSupabase } from './utils/supabase';
+import { storage, KEYS, pullFromSupabase, setAuthUserId } from './utils/storage';
+import { supabase, hasSupabase } from './utils/supabase';
 import { extractWrongNote } from './utils/claude';
 import { getTodayStr } from './utils/helpers';
+import AuthModal from './components/AuthModal';
 
 /* ─── Initial stacks ─── */
 const INITIAL_STACKS = [
@@ -75,6 +76,11 @@ const INITIAL_STACKS = [
 ];
 
 export default function App() {
+  /* ─── Auth state ─── */
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(hasSupabase);
+  const [showAuth, setShowAuth] = useState(false);
+
   /* ─── Persisted state ─── */
   const [apiKey, setApiKey] = useState(() => storage.get(KEYS.API_KEY, ''));
   const [stacks, setStacks] = useState(() => storage.get(KEYS.STACKS, INITIAL_STACKS));
@@ -88,11 +94,52 @@ export default function App() {
   const [tasks, setTasks] = useState(() => storage.get(KEYS.TASKS, []));
   const [tags, setTags] = useState(() => storage.get(KEYS.TAGS, []));
 
-  /* ─── Supabase bootstrap: pull remote data on first load ─── */
+  /* ─── Supabase Auth init ─── */
   useEffect(() => {
     if (!hasSupabase) return;
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user ?? null;
+      if (u) setAuthUserId(u.id);
+      setUser(u);
+      setAuthLoading(false);
+    });
+
+    // Listen for auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user ?? null;
+      setAuthUserId(u ? u.id : null);
+      setUser(u);
+    });
+
+    return () => subscription.unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ─── Load / clear data when auth user changes ─── */
+  useEffect(() => {
+    if (!hasSupabase || authLoading) return;
+
+    if (!user) {
+      // Logged out — reset to defaults
+      setStacks(INITIAL_STACKS);
+      setConversations({});
+      setWrongNotes([]);
+      setStudyActivity({});
+      setStreakData({ count: 0, lastDate: null });
+      setTimerGoals({});
+      setResumeMaterials([]);
+      setCounselingLogs([]);
+      setTasks([]);
+      setTags([]);
+      setStarted(false);
+      setCurrentView('dashboard');
+      return;
+    }
+
+    // Logged in — pull from Supabase then hydrate state
     pullFromSupabase().then(() => {
-      // Re-hydrate state from localStorage after remote pull
       setStacks(storage.get(KEYS.STACKS, INITIAL_STACKS));
       setConversations(storage.get(KEYS.CONVERSATIONS, {}));
       setWrongNotes(storage.get(KEYS.WRONG_NOTES, []));
@@ -103,12 +150,15 @@ export default function App() {
       setCounselingLogs(storage.get(KEYS.COUNSELING_LOGS, []));
       setTasks(storage.get(KEYS.TASKS, []));
       setTags(storage.get(KEYS.TAGS, []));
+      setStarted(true);
+      setShowAuth(false);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user, authLoading]);
 
   /* ─── Landing / UI state ─── */
-  const [started, setStarted] = useState(() => !!storage.get(KEYS.API_KEY, ''));
+  // When Supabase is active, auth controls access — start as false
+  const [started, setStarted] = useState(() => hasSupabase ? false : !!storage.get(KEYS.API_KEY, ''));
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedStackId, setSelectedStackId] = useState(null);
   const [showAddStack, setShowAddStack] = useState(false);
@@ -159,11 +209,18 @@ export default function App() {
 
   /* ─── Landing page ─── */
   const handleGetStarted = () => {
+    if (hasSupabase) { setShowAuth(true); return; }
     setStarted(true);
     if (!apiKey) setShowApiKey(true);
   };
 
   const handleGoLanding = () => setStarted(false);
+
+  /* ─── Auth logout ─── */
+  const handleLogout = async () => {
+    if (hasSupabase) await supabase.auth.signOut();
+    else handleGoLanding();
+  };
 
   /* ─── Stack CRUD ─── */
   const handleSaveStack = (data) => {
@@ -309,9 +366,34 @@ export default function App() {
   const selectedStack = stacks.find((s) => s.id === selectedStackId) || null;
   const currentMessages = conversations[selectedStackId] || [];
 
+  /* ─── Auth loading screen ─── */
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#f5f5f3]">
+        <div className="text-center">
+          <p className="shimmer-text font-black text-2xl tracking-tight mb-4">mergee</p>
+          <svg className="animate-spin w-5 h-5 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
   /* ─── Landing page ─── */
   if (!started) {
-    return <LandingPage onGetStarted={handleGetStarted} />;
+    return (
+      <>
+        <LandingPage onGetStarted={handleGetStarted} onOpenAuth={() => setShowAuth(true)} />
+        {showAuth && (
+          <AuthModal
+            onSuccess={() => { /* onAuthStateChange handles state */ }}
+            onClose={() => setShowAuth(false)}
+          />
+        )}
+      </>
+    );
   }
 
   return (
@@ -376,7 +458,13 @@ export default function App() {
 
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-        <TopNav currentView={currentView} onNavigate={setCurrentView} onOpenSettings={() => setShowApiKey(true)} />
+        <TopNav
+          currentView={currentView}
+          onNavigate={setCurrentView}
+          onOpenSettings={() => setShowApiKey(true)}
+          user={user}
+          onLogout={handleLogout}
+        />
         {currentView === 'dashboard' && (
           <Dashboard
             stacks={stacks}

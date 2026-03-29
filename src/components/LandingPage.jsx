@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 
-export default function LandingPage({ onGetStarted }) {
+export default function LandingPage({ onGetStarted, onOpenAuth }) {
+  const handleCTA = onOpenAuth ?? onGetStarted;
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const heroRef = useRef(null);
 
@@ -26,7 +27,7 @@ export default function LandingPage({ onGetStarted }) {
         {/* Logo */}
         <span
           className="shimmer-text font-black text-xl tracking-tight cursor-pointer select-none"
-          onClick={onGetStarted}
+          onClick={handleCTA}
         >
           mergee
         </span>
@@ -47,13 +48,21 @@ export default function LandingPage({ onGetStarted }) {
           </a>
         </div>
 
-        {/* Right CTA */}
-        <button
-          onClick={onGetStarted}
-          className="bg-[#111] text-white text-sm font-semibold px-5 py-2 rounded-xl hover:bg-gray-800 transition-all duration-200 hover:scale-105 active:scale-95"
-        >
-          get started
-        </button>
+        {/* Right CTAs */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCTA}
+            className="text-sm font-semibold text-gray-500 px-4 py-2 rounded-xl hover:bg-gray-100 transition-all duration-200"
+          >
+            log in
+          </button>
+          <button
+            onClick={handleCTA}
+            className="bg-[#111] text-white text-sm font-semibold px-5 py-2 rounded-xl hover:bg-gray-800 transition-all duration-200 hover:scale-105 active:scale-95"
+          >
+            get started
+          </button>
+        </div>
       </nav>
 
       {/* Hero Section */}
@@ -159,7 +168,7 @@ export default function LandingPage({ onGetStarted }) {
 
           {/* CTA */}
           <button
-            onClick={onGetStarted}
+            onClick={handleCTA}
             className="mt-10 inline-flex items-center gap-2 bg-[#111] text-white font-semibold rounded-2xl transition-all duration-200 hover:scale-105 hover:bg-gray-800 active:scale-95"
             style={{ fontSize: '16px', padding: '16px 32px' }}
           >
@@ -288,7 +297,7 @@ export default function LandingPage({ onGetStarted }) {
           join the grind. your PR is waiting.
         </p>
         <button
-          onClick={onGetStarted}
+          onClick={handleCTA}
           className="inline-flex items-center gap-2 bg-[#111] text-white font-semibold rounded-2xl transition-all duration-200 hover:scale-105 hover:bg-gray-800 active:scale-95"
           style={{ fontSize: '16px', padding: '16px 36px' }}
         >

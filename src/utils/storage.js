@@ -24,6 +24,10 @@ const SYNCED_KEYS = new Set([
   KEYS.TIMER_GOALS, KEYS.QUICK_LINKS,
 ]);
 
+// Auth user ID — set by App.jsx when user logs in/out
+let _authUserId = null;
+export function setAuthUserId(id) { _authUserId = id; }
+
 export const storage = {
   get: (key, defaultValue = null) => {
     try {
@@ -42,6 +46,7 @@ export const storage = {
     // Fire-and-forget sync to Supabase
     if (hasSupabase && SYNCED_KEYS.has(key)) {
       const userId = storage.getUserId();
+      if (!userId) return;
       supabase
         .from('mergee_data')
         .upsert({ user_id: userId, key, value, updated_at: new Date().toISOString() })
@@ -52,6 +57,9 @@ export const storage = {
     try { localStorage.removeItem(key); } catch {}
   },
   getUserId: () => {
+    // Prefer auth user ID when logged in
+    if (_authUserId) return _authUserId;
+    // Fallback: anonymous UUID stored in localStorage
     let id = localStorage.getItem(KEYS.USER_ID);
     if (!id) {
       id = crypto.randomUUID();
@@ -61,10 +69,11 @@ export const storage = {
   },
 };
 
-// Pull all data from Supabase and populate localStorage
+// Pull all data from Supabase into localStorage
 export async function pullFromSupabase() {
   if (!hasSupabase) return;
   const userId = storage.getUserId();
+  if (!userId) return;
   const { data, error } = await supabase
     .from('mergee_data')
     .select('key, value')
