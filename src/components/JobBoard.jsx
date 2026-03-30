@@ -277,47 +277,55 @@ function CoverLetterTab({ job, apiKey }) {
   const completedCount = questions.filter(q => q.text.trim().length > 0).length;
 
   return (
-    <div className="space-y-4">
-      {/* Summary card */}
-      {questions.length > 0 && (
-        <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex items-center gap-6">
-          <div className="text-center">
-            <p className="text-xl font-black text-gray-800">{completedCount}<span className="text-sm font-normal text-gray-400">/{questions.length}</span></p>
-            <p className="text-[10px] text-gray-400 mt-0.5">완성된 문항</p>
+    <div className="space-y-5">
+      {/* Sticky top bar: summary + action buttons */}
+      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+        {/* Stats row */}
+        <div className="flex items-stretch divide-x divide-gray-100">
+          <div className="flex-1 px-6 py-4 text-center">
+            <p className="text-3xl font-black text-gray-900 tabular-nums">
+              {completedCount}
+              <span className="text-lg font-normal text-gray-300">/{questions.length || 0}</span>
+            </p>
+            <p className="text-xs text-gray-400 mt-1 font-medium">완성된 문항</p>
           </div>
-          <div className="w-px h-10 bg-gray-200 flex-shrink-0" />
-          <div className="text-center">
-            <p className="text-xl font-black text-gray-800">{totalChars.toLocaleString()}<span className="text-sm font-normal text-gray-400">자</span></p>
-            <p className="text-[10px] text-gray-400 mt-0.5">전체 글자수</p>
-          </div>
-          <div className="flex-1" />
-          <div className="flex gap-1.5">
-            <button
-              onClick={handleCopyAll}
-              disabled={questions.every(q => !q.text.trim())}
-              className="h-7 px-3 text-[11px] font-semibold border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-40 flex items-center gap-1"
-            >
-              {copied ? '✓ 복사됨' : '전체 복사'}
-            </button>
-            <button
-              onClick={handleExportPDF}
-              disabled={questions.every(q => !q.text.trim())}
-              className="h-7 px-3 text-[11px] font-semibold border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-40 flex items-center gap-1"
-            >
-              PDF
-            </button>
+          <div className="flex-1 px-6 py-4 text-center">
+            <p className="text-3xl font-black text-gray-900 tabular-nums">
+              {totalChars.toLocaleString()}
+              <span className="text-lg font-normal text-gray-300">자</span>
+            </p>
+            <p className="text-xs text-gray-400 mt-1 font-medium">전체 글자수</p>
           </div>
         </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">자기소개서</p>
-        <span className="text-[10px] text-gray-400">자동저장</span>
+        {/* Action buttons row */}
+        <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-50 bg-gray-50/60">
+          <span className="text-[10px] text-gray-400 font-medium mr-auto">자동저장</span>
+          <button
+            onClick={handleCopyAll}
+            disabled={questions.every(q => !q.text.trim())}
+            className="h-8 px-4 text-xs font-semibold border border-gray-200 bg-white rounded-xl text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40 flex items-center gap-1.5 shadow-sm"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            {copied ? '✓ 복사됨' : '전체 복사'}
+          </button>
+          <button
+            onClick={handleExportPDF}
+            disabled={questions.every(q => !q.text.trim())}
+            className="h-8 px-4 text-xs font-semibold border border-gray-200 bg-white rounded-xl text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40 flex items-center gap-1.5 shadow-sm"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            PDF 내보내기
+          </button>
+        </div>
       </div>
 
       {questions.length === 0 && (
-        <div className="text-center py-8 text-gray-400 text-xs">
-          문항을 추가해 자소서를 작성해보세요.
+        <div className="text-center py-12 text-gray-400 text-sm">
+          아래 버튼으로 문항을 추가하세요.
         </div>
       )}
 
@@ -369,25 +377,30 @@ function CoverLetterTab({ job, apiKey }) {
                 onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
                 placeholder="내용을 작성하세요..."
                 rows={7}
-                className="w-full text-sm text-gray-700 bg-transparent border-none outline-none resize-none leading-relaxed placeholder-gray-300"
+                className="w-full text-sm text-gray-700 bg-transparent border-none outline-none resize-y leading-relaxed placeholder-gray-300"
+                style={{ minHeight: '120px' }}
               />
             </div>
 
             {/* Progress bar + char count */}
             <div className="px-4 pb-4">
               {hasLimit && (
-                <div className="h-1 bg-gray-100 rounded-full mb-2 overflow-hidden">
+                <div className="h-2.5 bg-gray-100 rounded-full mb-2.5 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-300"
                     style={{ width: `${barWidth}%`, backgroundColor: barColor }}
                   />
                 </div>
               )}
-              <div className="flex items-center justify-end gap-2">
-                {overLimit && (
-                  <span className="text-[10px] text-red-500 font-semibold mr-auto">{charCount - limit}자 초과</span>
-                )}
-                <span className={`text-[11px] font-semibold tabular-nums ${overLimit ? 'text-red-500' : ratio >= 0.8 && hasLimit ? 'text-amber-500' : 'text-gray-400'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-gray-400">
+                  {overLimit
+                    ? <span className="text-red-500 font-semibold">{charCount - limit}자 초과</span>
+                    : hasLimit
+                    ? <span style={{ color: barColor }} className="font-medium">{Math.round(ratio * 100)}% 작성</span>
+                    : null}
+                </span>
+                <span className={`text-sm font-bold tabular-nums ${overLimit ? 'text-red-500' : ratio >= 0.8 && hasLimit ? 'text-amber-500' : 'text-gray-500'}`}>
                   {charCount.toLocaleString()}{hasLimit ? ` / ${limit.toLocaleString()}` : ''}자
                 </span>
               </div>
@@ -449,21 +462,21 @@ function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, a
 
   return (
     // NO backdrop div — panel only closes via close button
-    <div className="absolute right-0 top-0 bottom-0 w-[420px] bg-white border-l border-gray-100 shadow-2xl z-30 flex flex-col overflow-hidden">
+    <div className="absolute right-0 top-0 bottom-0 bg-white border-l border-gray-100 shadow-2xl z-30 flex flex-col overflow-hidden" style={{ width: '55%' }}>
       {/* Panel header */}
-      <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
-        <div className="flex items-start justify-between gap-3">
+      <div className="px-6 py-5 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-900 text-base leading-tight truncate">{job.company}</h3>
-            {job.position && <p className="text-sm text-gray-500 mt-0.5 truncate">{job.position}</p>}
+            <h3 className="font-black text-gray-900 text-2xl leading-tight truncate">{job.company}</h3>
+            {job.position && <p className="text-base text-gray-500 mt-1 truncate">{job.position}</p>}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_STYLE[job.status]}`}>{job.status}</span>
+          <div className="flex items-center gap-3 flex-shrink-0 mt-0.5">
+            <span className={`text-sm font-semibold px-3 py-1.5 rounded-full ${STATUS_STYLE[job.status]}`}>{job.status}</span>
             <button
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition-colors"
             >
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -472,12 +485,12 @@ function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, a
       </div>
 
       {/* Tab bar */}
-      <div className="px-5 border-b border-gray-100 flex gap-0 flex-shrink-0">
+      <div className="px-6 border-b border-gray-100 flex gap-0 flex-shrink-0">
         {[{ id: 'info', label: '공고 정보' }, { id: 'cover', label: '자소서' }, { id: 'fit', label: 'Fit 분석' }].map(t => (
           <button
             key={t.id}
             onClick={() => setSpTab(t.id)}
-            className={`py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+            className={`py-3.5 px-4 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
               spTab === t.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-700'
             }`}
           >
@@ -487,7 +500,7 @@ function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, a
       </div>
 
       {/* Panel body */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
 
         {/* ─ 공고 정보 탭 ─ */}
         {spTab === 'info' && (
@@ -603,16 +616,16 @@ function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, a
       </div>
 
       {/* Panel footer */}
-      <div className="px-5 py-3.5 border-t border-gray-100 flex gap-2 flex-shrink-0">
+      <div className="px-6 py-4 border-t border-gray-100 flex gap-2 flex-shrink-0">
         <button
           onClick={() => onEdit(job)}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all active:scale-95"
+          className="flex-1 py-3 rounded-xl text-sm font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all active:scale-95"
         >
           편집
         </button>
         <button
           onClick={() => { onDelete(job.id); onClose(); }}
-          className="px-4 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:text-red-600 hover:bg-red-50 border border-gray-200 transition-colors"
+          className="px-5 py-3 rounded-xl text-sm font-semibold text-red-400 hover:text-red-600 hover:bg-red-50 border border-gray-200 transition-colors"
         >
           삭제
         </button>
@@ -687,10 +700,10 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
         ))}
       </div>
 
-      {/* Table — shrinks when panel is open */}
+      {/* Table — shrinks to 45% when panel is open */}
       <div
         className="flex-1 overflow-auto transition-all duration-200"
-        style={{ marginRight: selectedJob ? '420px' : '0' }}
+        style={{ marginRight: selectedJob ? '55%' : '0' }}
       >
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-20 opacity-60">
@@ -704,9 +717,9 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
               <tr>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">회사명</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">직무</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">마감일</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">상태</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">적합도</th>
+                <th className={`text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider ${selectedJob ? 'hidden' : ''}`}>마감일</th>
+                <th className={`text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider ${selectedJob ? 'hidden' : ''}`}>상태</th>
+                <th className={`text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider ${selectedJob ? 'hidden' : ''}`}>적합도</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -727,7 +740,7 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
                     <td className="px-4 py-3.5">
                       <span className="text-gray-500 text-[13px]">{job.position || '—'}</span>
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className={`px-4 py-3.5 ${selectedJob ? 'hidden' : ''}`}>
                       {job.deadline ? (
                         <div>
                           <span className={`text-[13px] font-medium ${urgent ? 'text-red-600' : 'text-gray-600'}`}>
@@ -741,10 +754,10 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
                         </div>
                       ) : <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                    <td className={`px-4 py-3.5 ${selectedJob ? 'hidden' : ''}`} onClick={(e) => e.stopPropagation()}>
                       <StatusBadge status={job.status} onChange={(s) => handleStatusChange(job.id, s)} />
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className={`px-4 py-3.5 ${selectedJob ? 'hidden' : ''}`}>
                       {job.fitScore != null ? (
                         <div className="flex items-center gap-2">
                           <div className="w-14 h-1.5 bg-gray-100 rounded-full">
