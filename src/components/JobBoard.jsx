@@ -27,13 +27,11 @@ function getDays(dateStr) {
 function StatusBadge({ status, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-
   useEffect(() => {
     const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, []);
-
   return (
     <div ref={ref} className="relative inline-block">
       <button
@@ -65,6 +63,7 @@ function JobFormModal({ job, onSave, onClose, apiKey }) {
     company: job?.company || '',
     position: job?.position || '',
     deadline: job?.deadline || '',
+    url: job?.url || '',
     notes: job?.notes || '',
     status: job?.status || '지원예정',
   });
@@ -73,7 +72,6 @@ function JobFormModal({ job, onSave, onClose, apiKey }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.company.trim()) return;
-
     let extra = {};
     if (form.notes && form.notes !== job?.notes) {
       setAnalyzing(true);
@@ -85,7 +83,6 @@ function JobFormModal({ job, onSave, onClose, apiKey }) {
     } else if (job?.analysis) {
       extra = { analysis: job.analysis, fitScore: job.fitScore };
     }
-
     onSave({ id: job?.id || String(Date.now()), ...form, ...extra });
     onClose();
   };
@@ -114,6 +111,13 @@ function JobFormModal({ job, onSave, onClose, apiKey }) {
             <input type="date" value={form.deadline}
               onChange={(e) => setForm((p) => ({ ...p, deadline: e.target.value }))}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-semibold block mb-1">공고 URL</label>
+            <input type="url" value={form.url}
+              onChange={(e) => setForm((p) => ({ ...p, url: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              placeholder="https://..." />
           </div>
           <div>
             <label className="text-xs text-gray-500 font-semibold block mb-1">
@@ -155,18 +159,12 @@ function JobFormModal({ job, onSave, onClose, apiKey }) {
 function JobFitActions({ job, stacks, apiKey }) {
   const [actions, setActions] = useState(null);
   const [loading, setLoading] = useState(false);
-
   const load = async () => {
     setLoading(true);
-    try {
-      const text = await getJobFitActions(apiKey, job, stacks);
-      setActions(text);
-    } catch {}
+    try { const text = await getJobFitActions(apiKey, job, stacks); setActions(text); } catch {}
     setLoading(false);
   };
-
   if (!job.notes && !job.fitScore) return null;
-
   return (
     <div>
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">합격 전략</p>
@@ -185,48 +183,42 @@ function JobFitActions({ job, stacks, apiKey }) {
   );
 }
 
-/* ── Slide Panel ── */
-function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, apiKey, onAddToPlan }) {
-  if (!job) return null;
-  const days = getDays(job.deadline);
-  const urgent = days !== null && days <= 3;
-
-  const [spTab, setSpTab] = useState('info'); // 'info' | 'fit' | 'cover'
-
-  // Cover letter: multi-question
+/* ── Cover Letter Tab ── */
+function CoverLetterTab({ job, apiKey }) {
   const [questions, setQuestions] = useState(() => storage.get(coverKey(job.id), []));
   const [coverFeedback, setCoverFeedback] = useState('');
   const [coverLoading, setCoverLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const saveTimerRef = useRef(null);
 
-  const persistQuestions = useCallback((qs) => {
+  const persist = useCallback((qs) => {
     clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      storage.set(coverKey(job.id), qs);
-    }, 500);
+    saveTimerRef.current = setTimeout(() => storage.set(coverKey(job.id), qs), 400);
   }, [job.id]);
 
   const addQuestion = () => {
     const newQ = { id: String(Date.now()), title: '', limit: '', text: '' };
     const updated = [...questions, newQ];
     setQuestions(updated);
-    persistQuestions(updated);
+    persist(updated);
   };
 
-  const updateQuestion = (id, field, value) => {
-    const updated = questions.map(q => q.id === id ? { ...q, [field]: value } : q);
-    setQuestions(updated);
-    persistQuestions(updated);
-  };
+  const updateQuestion = useCallback((id, field, value) => {
+    setQuestions(prev => {
+      const updated = prev.map(q => q.id === id ? { ...q, [field]: value } : q);
+      persist(updated);
+      return updated;
+    });
+  }, [persist]);
 
   const deleteQuestion = (id) => {
     const updated = questions.filter(q => q.id !== id);
     setQuestions(updated);
-    persistQuestions(updated);
+    persist(updated);
   };
 
   const requestFeedback = async () => {
-    const combined = questions.map((q, i) => `[문항 ${i+1}] ${q.title}\n${q.text}`).join('\n\n');
+    const combined = questions.map((q, i) => `[문항 ${i + 1}] ${q.title}\n${q.text}`).join('\n\n');
     if (!combined.trim()) return;
     setCoverLoading(true);
     try {
@@ -236,192 +228,396 @@ function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, a
     finally { setCoverLoading(false); }
   };
 
-  return (
-    <>
-      <div className="fixed inset-0 z-20" onClick={onClose} />
-      <div className="absolute right-0 top-0 bottom-0 w-[400px] bg-white border-l border-gray-100 shadow-2xl z-30 flex flex-col overflow-hidden transition-all duration-200">
-        {/* Panel header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-3 flex-shrink-0">
-          <div>
-            <h3 className="font-bold text-gray-900 text-base leading-tight">{job.company}</h3>
-            {job.position && <p className="text-sm text-gray-500 mt-0.5">{job.position}</p>}
+  const handleCopyAll = async () => {
+    const text = questions
+      .map((q, i) => `[문항 ${i + 1}] ${q.title}${q.limit ? ` (${q.text.length}/${q.limit}자)` : ''}\n\n${q.text}`)
+      .join('\n\n' + '─'.repeat(30) + '\n\n');
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleExportPDF = () => {
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const html = `
+      <!DOCTYPE html><html><head>
+      <meta charset="utf-8">
+      <title>${job.company} 자기소개서</title>
+      <style>
+        body{font-family:'Apple SD Gothic Neo',sans-serif;max-width:740px;margin:48px auto;color:#1a1a1a;line-height:1.9}
+        h1{font-size:20px;margin:0 0 4px}
+        h2{font-size:13px;color:#888;font-weight:normal;margin:0 0 40px}
+        .q{margin-bottom:40px;page-break-inside:avoid}
+        .q-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid #eee;padding-bottom:8px;margin-bottom:14px}
+        .q-title{font-weight:700;font-size:14px}
+        .q-meta{font-size:11px;color:#aaa}
+        .q-body{font-size:13.5px;white-space:pre-wrap;color:#333;line-height:1.9}
+        @media print{body{margin:32px}h2{margin-bottom:24px}}
+      </style></head><body>
+      <h1>${job.company}</h1>
+      <h2>${job.position || ''}</h2>
+      ${questions.map((q, i) => `
+        <div class="q">
+          <div class="q-head">
+            <span class="q-title">문항 ${i + 1}${q.title ? ': ' + q.title : ''}</span>
+            <span class="q-meta">${q.text.length}${q.limit ? ' / ' + q.limit : ''}자</span>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-gray-600 rounded-lg hover:bg-gray-100 flex-shrink-0 transition-colors">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
+          <div class="q-body">${q.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
         </div>
+      `).join('')}
+      </body></html>`;
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  };
 
-        {/* Tab bar */}
-        <div className="px-6 border-b border-gray-100 flex gap-1 flex-shrink-0">
-          {[{ id: 'info', label: '정보' }, { id: 'fit', label: 'Fit 분석' }, { id: 'cover', label: '자소서' }].map(t => (
+  // Summary stats
+  const totalChars = questions.reduce((s, q) => s + q.text.length, 0);
+  const completedCount = questions.filter(q => q.text.trim().length > 0).length;
+
+  return (
+    <div className="space-y-4">
+      {/* Summary card */}
+      {questions.length > 0 && (
+        <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex items-center gap-6">
+          <div className="text-center">
+            <p className="text-xl font-black text-gray-800">{completedCount}<span className="text-sm font-normal text-gray-400">/{questions.length}</span></p>
+            <p className="text-[10px] text-gray-400 mt-0.5">완성된 문항</p>
+          </div>
+          <div className="w-px h-10 bg-gray-200 flex-shrink-0" />
+          <div className="text-center">
+            <p className="text-xl font-black text-gray-800">{totalChars.toLocaleString()}<span className="text-sm font-normal text-gray-400">자</span></p>
+            <p className="text-[10px] text-gray-400 mt-0.5">전체 글자수</p>
+          </div>
+          <div className="flex-1" />
+          <div className="flex gap-1.5">
             <button
-              key={t.id}
-              onClick={() => setSpTab(t.id)}
-              className={`py-2.5 px-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${spTab === t.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-700'}`}
+              onClick={handleCopyAll}
+              disabled={questions.every(q => !q.text.trim())}
+              className="h-7 px-3 text-[11px] font-semibold border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-40 flex items-center gap-1"
             >
-              {t.label}
+              {copied ? '✓ 복사됨' : '전체 복사'}
             </button>
-          ))}
+            <button
+              onClick={handleExportPDF}
+              disabled={questions.every(q => !q.text.trim())}
+              className="h-7 px-3 text-[11px] font-semibold border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-40 flex items-center gap-1"
+            >
+              PDF
+            </button>
+          </div>
         </div>
+      )}
 
-        {/* Panel body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-          {spTab === 'info' && (
-            <>
-              {/* Meta */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_STYLE[job.status]}`}>{job.status}</span>
-                {days !== null && (
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${urgent ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
-                    {days < 0 ? '마감' : days === 0 ? 'D-day' : 'D-' + days}
-                    {job.deadline && ' · ' + new Date(job.deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                  </span>
-                )}
-                {job.fitScore != null && (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
-                    적합도 {job.fitScore}%
-                  </span>
-                )}
-              </div>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">자기소개서</p>
+        <span className="text-[10px] text-gray-400">자동저장</span>
+      </div>
 
-              {/* Notes */}
-              {job.notes && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">공고 내용</p>
-                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 max-h-40 overflow-y-auto">
-                    <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap">{job.notes}</p>
-                  </div>
-                </div>
-              )}
+      {questions.length === 0 && (
+        <div className="text-center py-8 text-gray-400 text-xs">
+          문항을 추가해 자소서를 작성해보세요.
+        </div>
+      )}
 
-              {/* Job Fit Actions */}
-              <JobFitActions job={job} stacks={stacks} apiKey={apiKey} />
-            </>
-          )}
+      {/* Question cards */}
+      {questions.map((q, idx) => {
+        const charCount = q.text.length;
+        const limit = parseInt(q.limit, 10);
+        const hasLimit = q.limit && !isNaN(limit) && limit > 0;
+        const ratio = hasLimit ? charCount / limit : 0;
+        const overLimit = hasLimit && charCount > limit;
+        const barColor = !hasLimit ? '#6366f1' : overLimit ? '#ef4444' : ratio >= 0.8 ? '#f59e0b' : '#10b981';
+        const barWidth = hasLimit ? Math.min(ratio * 100, 100) : 0;
 
-          {spTab === 'fit' && (
-            <>
-              <div className="flex items-center gap-3 flex-wrap">
-                {job.fitScore != null && (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
-                    적합도 {job.fitScore}%
-                  </span>
-                )}
-              </div>
-              <FitAnalysisPanel
-                job={job}
-                stacks={stacks}
-                resumeMaterials={resumeMaterials}
-                apiKey={apiKey}
-                onAddToPlan={onAddToPlan}
+        return (
+          <div key={q.id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+            {/* Card header */}
+            <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-gray-50">
+              <span className="w-6 h-6 rounded-lg bg-gray-900 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0">
+                {idx + 1}
+              </span>
+              <input
+                value={q.title}
+                onChange={(e) => updateQuestion(q.id, 'title', e.target.value)}
+                placeholder="문항 제목 (예: 지원 동기)"
+                className="flex-1 text-sm font-semibold text-gray-700 bg-transparent border-none outline-none placeholder-gray-300"
               />
-            </>
-          )}
-
-          {spTab === 'cover' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">자기소개서</p>
-                <span className="text-[10px] text-gray-400">{questions.length}개 문항 · 자동저장</span>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <input
+                  value={q.limit}
+                  onChange={(e) => updateQuestion(q.id, 'limit', e.target.value)}
+                  placeholder="글자수"
+                  className="w-16 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-center outline-none focus:ring-1 focus:ring-gray-300"
+                />
+                <button
+                  onClick={() => deleteQuestion(q.id)}
+                  className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
+            </div>
 
-              {questions.length === 0 && (
-                <div className="text-center py-8 text-gray-400 text-xs">
-                  문항을 추가해 자소서를 작성해보세요.
+            {/* Textarea */}
+            <div className="px-4 pt-3 pb-0">
+              <textarea
+                value={q.text}
+                onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
+                placeholder="내용을 작성하세요..."
+                rows={7}
+                className="w-full text-sm text-gray-700 bg-transparent border-none outline-none resize-none leading-relaxed placeholder-gray-300"
+              />
+            </div>
+
+            {/* Progress bar + char count */}
+            <div className="px-4 pb-4">
+              {hasLimit && (
+                <div className="h-1 bg-gray-100 rounded-full mb-2 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{ width: `${barWidth}%`, backgroundColor: barColor }}
+                  />
                 </div>
               )}
+              <div className="flex items-center justify-end gap-2">
+                {overLimit && (
+                  <span className="text-[10px] text-red-500 font-semibold mr-auto">{charCount - limit}자 초과</span>
+                )}
+                <span className={`text-[11px] font-semibold tabular-nums ${overLimit ? 'text-red-500' : ratio >= 0.8 && hasLimit ? 'text-amber-500' : 'text-gray-400'}`}>
+                  {charCount.toLocaleString()}{hasLimit ? ` / ${limit.toLocaleString()}` : ''}자
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
 
-              {questions.map((q, idx) => {
-                const charCount = q.text.length;
-                const limit = parseInt(q.limit, 10);
-                const overLimit = q.limit && !isNaN(limit) && charCount > limit;
-                return (
-                  <div key={q.id} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-white">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-gray-400 flex-shrink-0">Q{idx + 1}</span>
-                      <input
-                        value={q.title}
-                        onChange={(e) => updateQuestion(q.id, 'title', e.target.value)}
-                        placeholder="문항 제목 (예: 지원 동기)"
-                        className="flex-1 text-xs font-semibold text-gray-700 bg-transparent border-none outline-none placeholder-gray-300"
-                      />
-                      <input
-                        value={q.limit}
-                        onChange={(e) => updateQuestion(q.id, 'limit', e.target.value)}
-                        placeholder="글자수"
-                        className="w-16 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 text-center outline-none focus:ring-1 focus:ring-gray-300"
-                      />
-                      <button
-                        onClick={() => deleteQuestion(q.id)}
-                        className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
-                      >
-                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                    <textarea
-                      value={q.text}
-                      onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
-                      placeholder="내용을 작성하세요..."
-                      rows={5}
-                      className="w-full text-xs text-gray-700 border border-gray-100 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-gray-300 bg-gray-50"
-                    />
-                    <div className="flex items-center justify-end gap-1">
-                      {overLimit && (
-                        <span className="text-[10px] text-red-500 font-semibold mr-auto">{charCount - limit}자 초과</span>
-                      )}
-                      <span className={`text-[10px] font-semibold ${overLimit ? 'text-red-500' : 'text-gray-400'}`}>
-                        {charCount}{q.limit ? ` / ${q.limit}` : ''}자
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+      {/* Add question button */}
+      <button
+        onClick={addQuestion}
+        className="w-full py-3.5 rounded-2xl text-sm font-semibold border-2 border-dashed border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all flex items-center justify-center gap-2"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        문항 추가
+      </button>
 
-              <button
-                onClick={addQuestion}
-                className="w-full py-2 rounded-xl text-xs font-semibold border border-dashed border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors"
-              >
-                + 문항 추가
-              </button>
+      {/* AI feedback */}
+      {questions.length > 0 && (
+        <button
+          onClick={requestFeedback}
+          disabled={coverLoading || questions.every(q => !q.text.trim())}
+          className="w-full py-2.5 rounded-xl text-xs font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+        >
+          {coverLoading ? (
+            <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />첨삭 중...</>
+          ) : 'AI 첨삭'}
+        </button>
+      )}
 
-              {questions.length > 0 && (
-                <button
-                  onClick={requestFeedback}
-                  disabled={coverLoading || questions.every(q => !q.text.trim())}
-                  className="w-full py-2 rounded-xl text-xs font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
-                >
-                  {coverLoading ? (
-                    <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />첨삭 중...</>
-                  ) : 'AI 첨삭'}
-                </button>
+      {coverFeedback && (
+        <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
+          <p className="text-xs font-semibold text-indigo-600 mb-2">AI 첨삭 결과</p>
+          <pre className="text-xs text-indigo-800 leading-relaxed whitespace-pre-wrap font-sans">{coverFeedback}</pre>
+          <button onClick={() => setCoverFeedback('')} className="text-[10px] text-indigo-400 hover:text-indigo-600 mt-2 transition-colors">닫기</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Slide Panel ── */
+function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, apiKey, onAddToPlan, onStatusChange }) {
+  const days = getDays(job.deadline);
+  const urgent = days !== null && days <= 3;
+  const [spTab, setSpTab] = useState('info');
+  const [editingMemo, setEditingMemo] = useState(false);
+  const [memo, setMemo] = useState(job.notes || '');
+
+  // Sync memo if job changes
+  useEffect(() => { setMemo(job.notes || ''); setEditingMemo(false); setSpTab('info'); }, [job.id]);
+
+  const saveMemo = () => {
+    onEdit({ ...job, notes: memo });
+    setEditingMemo(false);
+  };
+
+  return (
+    // NO backdrop div — panel only closes via close button
+    <div className="absolute right-0 top-0 bottom-0 w-[420px] bg-white border-l border-gray-100 shadow-2xl z-30 flex flex-col overflow-hidden">
+      {/* Panel header */}
+      <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-gray-900 text-base leading-tight truncate">{job.company}</h3>
+            {job.position && <p className="text-sm text-gray-500 mt-0.5 truncate">{job.position}</p>}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_STYLE[job.status]}`}>{job.status}</span>
+            <button
+              onClick={onClose}
+              className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="px-5 border-b border-gray-100 flex gap-0 flex-shrink-0">
+        {[{ id: 'info', label: '공고 정보' }, { id: 'cover', label: '자소서' }, { id: 'fit', label: 'Fit 분석' }].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setSpTab(t.id)}
+            className={`py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+              spTab === t.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Panel body */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+
+        {/* ─ 공고 정보 탭 ─ */}
+        {spTab === 'info' && (
+          <>
+            {/* Meta badges */}
+            <div className="flex flex-wrap items-center gap-2">
+              {days !== null && (
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${urgent ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                  {days < 0 ? '마감' : days === 0 ? 'D-day' : 'D-' + days}
+                  {job.deadline && ' · ' + new Date(job.deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                </span>
               )}
+              {job.fitScore != null && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
+                  적합도 {job.fitScore}%
+                </span>
+              )}
+            </div>
 
-              {coverFeedback && (
-                <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
-                  <p className="text-xs font-semibold text-indigo-600 mb-2">AI 첨삭 결과</p>
-                  <pre className="text-xs text-indigo-800 leading-relaxed whitespace-pre-wrap font-sans">{coverFeedback}</pre>
-                  <button onClick={() => setCoverFeedback('')} className="text-[10px] text-indigo-400 hover:text-indigo-600 mt-2 transition-colors">닫기</button>
+            {/* URL */}
+            {job.url && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">공고 링크</p>
+                <a
+                  href={job.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-indigo-500 hover:text-indigo-700 truncate block transition-colors"
+                >
+                  {job.url} ↗
+                </a>
+              </div>
+            )}
+
+            {/* Status change */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">상태 변경</p>
+              <div className="flex flex-wrap gap-1.5">
+                {STATUSES.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => onStatusChange(job.id, s)}
+                    className={`text-xs px-2.5 py-1 rounded-full font-semibold transition-all ${
+                      job.status === s
+                        ? STATUS_STYLE[s] + ' ring-2 ring-offset-1 ring-gray-400'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Memo */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">메모</p>
+                {!editingMemo && (
+                  <button onClick={() => setEditingMemo(true)} className="text-[10px] text-indigo-500 hover:text-indigo-700 font-semibold transition-colors">편집</button>
+                )}
+              </div>
+              {editingMemo ? (
+                <>
+                  <textarea
+                    value={memo}
+                    onChange={e => setMemo(e.target.value)}
+                    rows={5}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none"
+                    placeholder="공고 내용, JD 요약 등..."
+                  />
+                  <div className="flex gap-2 mt-1.5">
+                    <button onClick={saveMemo} className="px-3 py-1 bg-gray-900 text-white text-xs font-semibold rounded-lg">저장</button>
+                    <button onClick={() => { setEditingMemo(false); setMemo(job.notes || ''); }} className="px-3 py-1 text-gray-500 text-xs font-semibold rounded-lg hover:bg-gray-100">취소</button>
+                  </div>
+                </>
+              ) : (
+                <div className={`rounded-xl p-3 border border-gray-100 ${job.notes ? 'bg-gray-50' : 'bg-white'}`}>
+                  {job.notes ? (
+                    <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap max-h-36 overflow-y-auto">{job.notes}</p>
+                  ) : (
+                    <p className="text-xs text-gray-300 italic">메모 없음. 편집을 눌러 추가하세요.</p>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Panel footer */}
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-2 flex-shrink-0">
-          <button onClick={() => onEdit(job)}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all active:scale-95">
-            편집
-          </button>
-          <button onClick={() => { onDelete(job.id); onClose(); }}
-            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:text-red-600 hover:bg-red-50 border border-gray-200 transition-colors">
-            삭제
-          </button>
-        </div>
+            {/* Fit Actions */}
+            <JobFitActions job={job} stacks={stacks} apiKey={apiKey} />
+          </>
+        )}
+
+        {/* ─ 자소서 탭 ─ */}
+        {spTab === 'cover' && <CoverLetterTab job={job} apiKey={apiKey} />}
+
+        {/* ─ Fit 분석 탭 ─ */}
+        {spTab === 'fit' && (
+          <>
+            {job.fitScore != null && (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 inline-block">
+                적합도 {job.fitScore}%
+              </span>
+            )}
+            <FitAnalysisPanel
+              job={job}
+              stacks={stacks}
+              resumeMaterials={resumeMaterials}
+              apiKey={apiKey}
+              onAddToPlan={onAddToPlan}
+            />
+          </>
+        )}
       </div>
-    </>
+
+      {/* Panel footer */}
+      <div className="px-5 py-3.5 border-t border-gray-100 flex gap-2 flex-shrink-0">
+        <button
+          onClick={() => onEdit(job)}
+          className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all active:scale-95"
+        >
+          편집
+        </button>
+        <button
+          onClick={() => { onDelete(job.id); onClose(); }}
+          className="px-4 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:text-red-600 hover:bg-red-50 border border-gray-200 transition-colors"
+        >
+          삭제
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -435,7 +631,10 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
 
   const saveJobs = (updated) => { setJobs(updated); storage.set(JOB_KEY, updated); };
   const handleSave = (job) => {
-    saveJobs(jobs.find((j) => j.id === job.id) ? jobs.map((j) => j.id === job.id ? job : j) : [...jobs, job]);
+    const next = jobs.find((j) => j.id === job.id)
+      ? jobs.map((j) => j.id === job.id ? job : j)
+      : [...jobs, job];
+    saveJobs(next);
     if (selectedJob?.id === job.id) setSelectedJob(job);
   };
   const handleDelete = (id) => { saveJobs(jobs.filter((j) => j.id !== id)); if (selectedJob?.id === id) setSelectedJob(null); };
@@ -474,9 +673,7 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
             key={tab}
             onClick={() => setFilter(tab)}
             className={`px-3.5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-              filter === tab
-                ? 'border-gray-900 text-gray-900'
-                : 'border-transparent text-gray-400 hover:text-gray-700'
+              filter === tab ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-700'
             }`}
           >
             {tab}
@@ -490,8 +687,11 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
         ))}
       </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
+      {/* Table — shrinks when panel is open */}
+      <div
+        className="flex-1 overflow-auto transition-all duration-200"
+        style={{ marginRight: selectedJob ? '420px' : '0' }}
+      >
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-20 opacity-60">
             <div className="text-4xl mb-3">📋</div>
@@ -507,7 +707,6 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">마감일</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">상태</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">적합도</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden md:table-cell">메모</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -520,7 +719,7 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
                   <tr
                     key={job.id}
                     onClick={() => setSelectedJob(isSelected ? null : job)}
-                    className={`cursor-pointer transition-colors ${isSelected ? 'bg-gray-50' : 'bg-white hover:bg-gray-50/60'}`}
+                    className={`cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50/60' : 'bg-white hover:bg-gray-50/60'}`}
                   >
                     <td className="px-5 py-3.5">
                       <span className="font-semibold text-gray-800 text-[14px]">{job.company}</span>
@@ -548,7 +747,7 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
                     <td className="px-4 py-3.5">
                       {job.fitScore != null ? (
                         <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 bg-gray-100 rounded-full">
+                          <div className="w-14 h-1.5 bg-gray-100 rounded-full">
                             <div
                               className="h-1.5 rounded-full"
                               style={{
@@ -560,9 +759,6 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
                           <span className="text-xs font-semibold text-gray-600">{job.fitScore}%</span>
                         </div>
                       ) : <span className="text-gray-300 text-xs">—</span>}
-                    </td>
-                    <td className="px-4 py-3.5 hidden md:table-cell max-w-[160px]">
-                      <span className="text-xs text-gray-400 truncate block">{job.notes ? job.notes.slice(0, 40) + (job.notes.length > 40 ? '…' : '') : '—'}</span>
                     </td>
                     <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
@@ -595,13 +791,14 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
         )}
       </div>
 
-      {/* Slide panel */}
+      {/* Slide panel — absolute, closes ONLY via close button */}
       {selectedJob && (
         <SlidePanel
           job={selectedJob}
           onClose={() => setSelectedJob(null)}
-          onEdit={(j) => { setEditingJob(j); setShowModal(true); }}
+          onEdit={(j) => { handleSave(j); setSelectedJob(j); }}
           onDelete={handleDelete}
+          onStatusChange={handleStatusChange}
           stacks={stacks}
           resumeMaterials={resumeMaterials}
           apiKey={apiKey}

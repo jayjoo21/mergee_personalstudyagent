@@ -4,9 +4,9 @@ import { formatTime, getDday, formatDday, getDdayBadgeClass } from '../utils/hel
 import Timer from './Timer';
 import QuizMode from './QuizMode';
 import ContextBriefing from './ContextBriefing';
-import ResourceHub from './ResourceHub';
 import ResumeMaterialModal from './ResumeMaterialModal';
 import StackLibrary from './StackLibrary';
+import StackNotes from './StackNotes';
 
 /* ────────────── Typing Indicator ────────────── */
 function TypingIndicator() {
@@ -23,10 +23,9 @@ function TypingIndicator() {
 }
 
 /* ────────────── Message Bubble ────────────── */
-function MessageBubble({ message, onSave, saving, onSaveMaterial, savingMaterial }) {
+function MessageBubble({ message, onSave, saving, onSaveMaterial }) {
   const [hover, setHover] = useState(false);
   const isAI = message.role === 'assistant';
-
   return (
     <div
       className={`flex items-end gap-2 mb-4 ${isAI ? '' : 'flex-row-reverse'}`}
@@ -45,15 +44,13 @@ function MessageBubble({ message, onSave, saving, onSaveMaterial, savingMaterial
         <div className={`text-[10px] text-gray-400 mt-1 ${isAI ? 'text-left pl-1' : 'text-right pr-1'}`}>
           {formatTime(message.timestamp)}
         </div>
-
         {isAI && hover && (
           <div className="absolute -bottom-0.5 right-0 flex gap-1">
             <button
               onClick={() => onSaveMaterial(message)}
-              disabled={savingMaterial}
               className="text-[10px] px-2 py-0.5 bg-white border border-gray-200 hover:border-purple-300 text-gray-400 hover:text-purple-600 rounded-full shadow-sm transition-all"
             >
-              {savingMaterial ? '저장 중…' : '소재'}
+              소재
             </button>
             <button
               onClick={() => onSave(message)}
@@ -69,7 +66,15 @@ function MessageBubble({ message, onSave, saving, onSaveMaterial, savingMaterial
   );
 }
 
-/* ────────────── ChatArea ────────────── */
+/* ────────────── Tab config ────────────── */
+const TABS = [
+  { id: 'library', icon: '📚', label: 'library' },
+  { id: 'notes',   icon: '📝', label: 'notes' },
+  { id: 'tutor',   icon: '💬', label: 'tutor', badge: 'AI' },
+  { id: 'quiz',    icon: '🎯', label: 'quiz' },
+];
+
+/* ────────────── ChatArea (Stack Page) ────────────── */
 export default function ChatArea({
   stack,
   messages,
@@ -80,15 +85,14 @@ export default function ChatArea({
   goalMinutes,
   onSaveSession,
 }) {
+  const [activeTab, setActiveTab] = useState('library');
+  const [showQuiz, setShowQuiz] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState(null);
-  const [savingMaterialId, setSavingMaterialId] = useState(null);
   const [listening, setListening] = useState(false);
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'library'
   const [showBriefing, setShowBriefing] = useState(false);
-  const [materialMsg, setMaterialMsg] = useState(null); // message to save as material
+  const [materialMsg, setMaterialMsg] = useState(null);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -96,19 +100,21 @@ export default function ChatArea({
 
   const dday = getDday(stack?.examDate);
 
-  // Show briefing card when switching to a stack with existing messages
+  // Reset to library tab on stack switch
   useEffect(() => {
     if (!stack) return;
     if (prevStackIdRef.current && prevStackIdRef.current !== stack.id && messages.length > 0) {
       setShowBriefing(true);
     }
     prevStackIdRef.current = stack.id;
-    setActiveTab('chat');
+    setActiveTab('library');
   }, [stack?.id]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+    if (activeTab === 'tutor') {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, loading, activeTab]);
 
   const noKey = !apiKey;
 
@@ -118,10 +124,8 @@ export default function ChatArea({
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setLoading(true);
-
     const userMsg = { id: String(Date.now()), role: 'user', content: text, timestamp: new Date().toISOString() };
     onSendMessage(userMsg, null);
-
     try {
       const history = [...messages, userMsg].map((m) => ({ role: m.role, content: m.content }));
       const reply = await callClaude(apiKey, history, stack?.systemPrompt || '당신은 친절하고 유능한 학습 튜터입니다.');
@@ -137,8 +141,6 @@ export default function ChatArea({
     setSavingId(msg.id);
     try { await onSaveWrongNote(msg, stack); } finally { setSavingId(null); }
   };
-
-  const handleSaveMaterial = (msg) => setMaterialMsg(msg);
 
   const handleContinue = async (question) => {
     if (!question || loading || noKey) return;
@@ -174,6 +176,14 @@ export default function ChatArea({
     setListening(true);
   };
 
+  const handleTabClick = (tabId) => {
+    if (tabId === 'quiz') {
+      setShowQuiz(true);
+    } else {
+      setActiveTab(tabId);
+    }
+  };
+
   if (!stack) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[#f8f9fa]">
@@ -187,13 +197,15 @@ export default function ChatArea({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#f8f9fa]">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-3.5 flex items-center gap-3 flex-shrink-0">
+      {/* ── Header ── */}
+      <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-3 flex-shrink-0">
+        {/* Stack identity */}
         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stack.color }} />
         <h2 className="font-semibold text-gray-800 text-sm">{stack.name}</h2>
-
         {dday !== null && (
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getDdayBadgeClass(dday)}`}>{formatDday(dday)}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${getDdayBadgeClass(dday)}`}>
+            {formatDday(dday)}
+          </span>
         )}
         {stack.examDate && (
           <span className="text-[11px] text-gray-400">
@@ -201,8 +213,8 @@ export default function ChatArea({
           </span>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
-          {/* Progress mini bar */}
+        <div className="ml-auto flex items-center gap-3">
+          {/* Progress bar */}
           <div className="flex items-center gap-1.5">
             <div className="w-16 h-1.5 bg-gray-100 rounded-full">
               <div className="h-1.5 rounded-full transition-all" style={{ width: `${stack.progress || 0}%`, backgroundColor: stack.color }} />
@@ -210,53 +222,57 @@ export default function ChatArea({
             <span className="text-[11px] text-gray-400">{stack.progress || 0}%</span>
           </div>
 
-          {/* Tabs: chat | quiz | library */}
+          {/* Tab bar */}
           <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`h-7 px-3 rounded-lg text-xs font-semibold transition-colors ${
-                activeTab === 'chat' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              chat
-            </button>
-            <button
-              onClick={() => setShowQuiz(true)}
-              className="h-7 px-3 rounded-lg text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              quiz
-            </button>
-            <button
-              onClick={() => setActiveTab(activeTab === 'library' ? 'chat' : 'library')}
-              className={`h-7 px-3 rounded-lg text-xs font-semibold transition-colors ${
-                activeTab === 'library' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              library
-            </button>
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabClick(tab.id)}
+                className={`h-7 px-3 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 ${
+                  activeTab === tab.id && tab.id !== 'quiz'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <span>{tab.label}</span>
+                {tab.badge && (
+                  <span className="text-[9px] bg-indigo-100 text-indigo-600 px-1 py-0.5 rounded font-bold">{tab.badge}</span>
+                )}
+              </button>
+            ))}
           </div>
 
-          {/* Voice button */}
-          <button onClick={toggleSpeech} title="voice input"
-            className={`h-9 w-9 flex items-center justify-center rounded-xl text-xs font-semibold transition-colors ${
-              listening ? 'bg-red-100 text-red-500 animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}>
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
-          </button>
+          {/* Voice button — only visible in tutor tab */}
+          {activeTab === 'tutor' && (
+            <button
+              onClick={toggleSpeech}
+              title="voice input"
+              className={`h-9 w-9 flex items-center justify-center rounded-xl transition-colors ${
+                listening ? 'bg-red-100 text-red-500 animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Library tab */}
-      {activeTab === 'library' ? (
+      {/* ── Tab Content ── */}
+
+      {activeTab === 'library' && (
         <StackLibrary stack={stack} apiKey={apiKey} />
-      ) : (
+      )}
+
+      {activeTab === 'notes' && (
+        <StackNotes stack={stack} />
+      )}
+
+      {activeTab === 'tutor' && (
         <>
-          {/* Timer bar */}
           <Timer stackId={stack.id} goalMinutes={goalMinutes} onSaveSession={onSaveSession} />
 
-          {/* Context briefing */}
           {showBriefing && messages.length > 0 && (
             <ContextBriefing
               stack={stack}
@@ -278,15 +294,13 @@ export default function ChatArea({
                 <p className="text-gray-400 text-xs mt-1">ask anything to start the session</p>
               </div>
             )}
-
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
                 message={msg}
                 onSave={saveNote}
                 saving={savingId === msg.id}
-                onSaveMaterial={handleSaveMaterial}
-                savingMaterial={savingMaterialId === msg.id}
+                onSaveMaterial={setMaterialMsg}
               />
             ))}
             {loading && <TypingIndicator />}
@@ -329,8 +343,15 @@ export default function ChatArea({
         </>
       )}
 
-      {/* Quiz Modal */}
-      {showQuiz && <QuizMode stack={stack} apiKey={apiKey} onClose={() => setShowQuiz(false)} onSaveWrongNote={onSaveWrongNote} />}
+      {/* Quiz modal overlay */}
+      {showQuiz && (
+        <QuizMode
+          stack={stack}
+          apiKey={apiKey}
+          onClose={() => setShowQuiz(false)}
+          onSaveWrongNote={onSaveWrongNote}
+        />
+      )}
 
       {/* Resume Material Modal */}
       {materialMsg && (

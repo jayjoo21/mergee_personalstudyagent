@@ -4,12 +4,8 @@ import { storage } from '../utils/storage';
 const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 /* ── Helpers ── */
-function toDateStr(date) {
-  return date.toISOString().split('T')[0];
-}
-function todayStr() {
-  return toDateStr(new Date());
-}
+function toDateStr(date) { return date.toISOString().split('T')[0]; }
+function todayStr() { return toDateStr(new Date()); }
 function getMonthDays(year, month) {
   const firstDow = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -29,15 +25,36 @@ function getWeekDays(dateStr) {
   });
 }
 function logKey(dateStr) { return `daily_log_${dateStr}`; }
-function loadLog(dateStr) {
-  return storage.get(logKey(dateStr), { todos: [], memo: '' });
-}
-function saveLog(dateStr, data) {
-  storage.set(logKey(dateStr), data);
-}
+function loadLog(dateStr) { return storage.get(logKey(dateStr), { todos: [], memo: '' }); }
+function saveLog(dateStr, data) { storage.set(logKey(dateStr), data); }
 function hasTodosOnDate(dateStr) {
   const d = storage.get(logKey(dateStr));
   return !!(d && Array.isArray(d.todos) && d.todos.some(t => t.text?.trim()));
+}
+
+/* ── DayCell: defined OUTSIDE main component to keep stable identity ── */
+function DayCell({ dateStr, compact, isToday, isSelected, hasTodos, hasDeadline, onClick }) {
+  if (!dateStr) return <div />;
+  const dayNum = parseInt(dateStr.split('-')[2], 10);
+  const h = compact ? 'h-7' : 'h-9';
+  return (
+    <button
+      onClick={onClick}
+      className={`relative flex flex-col items-center justify-center rounded-lg transition-all duration-100 ${h} ${
+        isToday ? 'bg-gray-900 text-white'
+        : isSelected ? 'bg-gray-100 text-gray-900 ring-1 ring-gray-300'
+        : 'text-gray-600 hover:bg-gray-50'
+      }`}
+    >
+      <span className={`font-medium leading-none ${compact ? 'text-[11px]' : 'text-xs'}`}>{dayNum}</span>
+      {(hasTodos || hasDeadline) && (
+        <div className="flex gap-0.5 mt-0.5">
+          {hasTodos && <span className="w-1 h-1 rounded-full bg-emerald-400 flex-shrink-0" />}
+          {hasDeadline && <span className="w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />}
+        </div>
+      )}
+    </button>
+  );
 }
 
 /* ── Main component ── */
@@ -47,6 +64,7 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
   const [viewMode, setViewMode] = useState('month');
   const [calDate, setCalDate] = useState(new Date());
 
+  // Separate local state for the input to avoid unnecessary re-renders
   const [todos, setTodos] = useState([]);
   const [memo, setMemo] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -69,82 +87,110 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
   }, [selectedDate]);
 
   /* Todo operations */
-  const addTodo = (afterId = null) => {
-    const item = { id: `dl_${Date.now()}`, text: '', done: false };
-    let next;
-    if (afterId === null) {
-      next = [...todos, item];
-    } else {
-      const idx = todos.findIndex(t => t.id === afterId);
-      next = [...todos.slice(0, idx + 1), item, ...todos.slice(idx + 1)];
-    }
-    setTodos(next);
-    save(next, memo);
-    setEditingId(item.id);
-    setTimeout(() => inputRefs.current[item.id]?.focus(), 30);
-  };
+  const addTodo = useCallback((afterId = null) => {
+    setTodos(prev => {
+      const item = { id: `dl_${Date.now()}`, text: '', done: false };
+      let next;
+      if (afterId === null) {
+        next = [...prev, item];
+      } else {
+        const idx = prev.findIndex(t => t.id === afterId);
+        next = [...prev.slice(0, idx + 1), item, ...prev.slice(idx + 1)];
+      }
+      saveLog(selectedDate, { todos: next, memo });
+      setEditingId(item.id);
+      setTimeout(() => inputRefs.current[item.id]?.focus(), 30);
+      return next;
+    });
+  }, [selectedDate, memo]);
 
-  const updateText = (id, text) => {
-    const next = todos.map(t => t.id === id ? { ...t, text } : t);
-    setTodos(next);
-    save(next, memo);
-  };
+  // KEY FIX: updateText only updates local state immediately, saves debounced
+  const updateText = useCallback((id, text) => {
+    setTodos(prev => {
+      const next = prev.map(t => t.id === id ? { ...t, text } : t);
+      saveLog(selectedDate, { todos: next, memo });
+      return next;
+    });
+  }, [selectedDate, memo]);
 
-  const toggleTodo = (id) => {
-    const next = todos.map(t => t.id === id ? { ...t, done: !t.done } : t);
-    setTodos(next);
-    save(next, memo);
-  };
+  const toggleTodo = useCallback((id) => {
+    setTodos(prev => {
+      const next = prev.map(t => t.id === id ? { ...t, done: !t.done } : t);
+      saveLog(selectedDate, { todos: next, memo });
+      return next;
+    });
+  }, [selectedDate, memo]);
 
-  const deleteTodo = (id) => {
-    const idx = todos.findIndex(t => t.id === id);
-    const next = todos.filter(t => t.id !== id);
-    setTodos(next);
-    save(next, memo);
-    if (editingId === id) {
-      if (idx > 0) {
-        const prevId = todos[idx - 1].id;
-        setEditingId(prevId);
-        setTimeout(() => inputRefs.current[prevId]?.focus(), 30);
-      } else setEditingId(null);
-    }
-  };
+  const deleteTodo = useCallback((id) => {
+    setTodos(prev => {
+      const idx = prev.findIndex(t => t.id === id);
+      const next = prev.filter(t => t.id !== id);
+      saveLog(selectedDate, { todos: next, memo });
+      if (editingId === id) {
+        if (idx > 0) {
+          const prevId = prev[idx - 1].id;
+          setEditingId(prevId);
+          setTimeout(() => inputRefs.current[prevId]?.focus(), 30);
+        } else {
+          setEditingId(null);
+        }
+      }
+      return next;
+    });
+  }, [selectedDate, memo, editingId]);
 
-  const handleKeyDown = (e, id) => {
+  const handleKeyDown = useCallback((e, id) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       addTodo(id);
     } else if (e.key === 'Backspace') {
-      const todo = todos.find(t => t.id === id);
-      if (todo?.text === '') {
-        e.preventDefault();
-        deleteTodo(id);
-      }
+      setTodos(prev => {
+        const todo = prev.find(t => t.id === id);
+        if (todo?.text === '') {
+          e.preventDefault();
+          const idx = prev.findIndex(t => t.id === id);
+          const next = prev.filter(t => t.id !== id);
+          saveLog(selectedDate, { todos: next, memo });
+          if (idx > 0) {
+            const prevId = prev[idx - 1].id;
+            setEditingId(prevId);
+            setTimeout(() => inputRefs.current[prevId]?.focus(), 30);
+          } else {
+            setEditingId(null);
+          }
+          return next;
+        }
+        return prev;
+      });
     }
-  };
+  }, [addTodo, selectedDate, memo]);
 
   /* Drag & drop */
   const onDragStart = (e, idx) => { e.dataTransfer.effectAllowed = 'move'; setDragIndex(idx); };
   const onDragOver = (e, idx) => { e.preventDefault(); setDragOverIndex(idx); };
-  const onDrop = (e, idx) => {
+  const onDrop = useCallback((e, idx) => {
     e.preventDefault();
-    if (dragIndex === null || dragIndex === idx) { setDragIndex(null); setDragOverIndex(null); return; }
-    const next = [...todos];
-    const [moved] = next.splice(dragIndex, 1);
-    next.splice(idx, 0, moved);
-    setTodos(next);
-    save(next, memo);
-    setDragIndex(null);
-    setDragOverIndex(null);
-  };
+    setTodos(prev => {
+      if (dragIndex === null || dragIndex === idx) { setDragIndex(null); setDragOverIndex(null); return prev; }
+      const next = [...prev];
+      const [moved] = next.splice(dragIndex, 1);
+      next.splice(idx, 0, moved);
+      saveLog(selectedDate, { todos: next, memo });
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return next;
+    });
+  }, [dragIndex, selectedDate, memo]);
   const onDragEnd = () => { setDragIndex(null); setDragOverIndex(null); };
 
-  /* Memo debounce */
-  const handleMemoChange = (val) => {
+  /* Memo: update local state immediately, debounce save */
+  const handleMemoChange = useCallback((val) => {
     setMemo(val);
-    if (memoTimer.current) clearTimeout(memoTimer.current);
-    memoTimer.current = setTimeout(() => save(todos, val), 500);
-  };
+    clearTimeout(memoTimer.current);
+    memoTimer.current = setTimeout(() => {
+      setTodos(prev => { saveLog(selectedDate, { todos: prev, memo: val }); return prev; });
+    }, 500);
+  }, [selectedDate]);
 
   /* Calendar navigation */
   const prevPeriod = () => {
@@ -199,61 +245,76 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
   const selectedDateLabel = new Date(selectedDate + 'T00:00:00')
     .toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
-  /* ── Sub-renders ── */
-  const DayCell = ({ dateStr, stretch = false }) => {
-    if (!dateStr) return <div />;
-    const isToday = dateStr === TODAY;
-    const isSelected = dateStr === selectedDate;
-    const hasTodos = hasTodosOnDate(dateStr);
-    const hasDeadline = !!deadlineDates[dateStr];
-    const dayNum = parseInt(dateStr.split('-')[2], 10);
-    const h = compact ? 'h-7' : 'h-9';
-    return (
-      <button
-        onClick={() => { setSelectedDate(dateStr); if (viewMode === 'week') setCalDate(new Date(dateStr + 'T00:00:00')); }}
-        className={`relative flex flex-col items-center justify-center rounded-lg transition-all duration-100 ${h} ${stretch ? 'flex-1' : ''} ${
-          isToday
-            ? 'bg-gray-900 text-white'
-            : isSelected
-            ? 'bg-gray-100 text-gray-900 ring-1 ring-gray-300'
-            : 'text-gray-600 hover:bg-gray-50'
-        }`}
-      >
-        <span className={`font-medium leading-none ${compact ? 'text-[11px]' : 'text-xs'}`}>{dayNum}</span>
-        {(hasTodos || hasDeadline) && (
-          <div className="flex gap-0.5 mt-0.5">
-            {hasTodos && <span className="w-1 h-1 rounded-full bg-emerald-400 flex-shrink-0" />}
-            {hasDeadline && <span className="w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />}
-          </div>
-        )}
-      </button>
-    );
-  };
+  /* ─── Render functions (called as functions, not as <Component />, to prevent remounting) ─── */
 
-  const CalendarGrid = () => (
+  const renderNavButtons = (small = false) => (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => setViewMode(v => v === 'month' ? 'week' : 'month')}
+        className={`font-semibold text-gray-400 hover:text-gray-700 px-2 rounded-lg hover:bg-gray-50 transition-colors ${small ? 'text-[10px] py-1' : 'text-xs py-1.5'}`}
+      >
+        {viewMode === 'month' ? 'week' : 'month'}
+      </button>
+      <button onClick={prevPeriod}
+        className={`flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors ${small ? 'w-5 h-5' : 'w-6 h-6'}`}>
+        <svg width={small ? 9 : 11} height={small ? 9 : 11} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <span className={`font-semibold text-gray-700 text-center ${small ? 'text-[10px] min-w-[64px]' : 'text-xs min-w-[80px]'}`}>{calHeader}</span>
+      <button onClick={nextPeriod}
+        className={`flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors ${small ? 'w-5 h-5' : 'w-6 h-6'}`}>
+        <svg width={small ? 9 : 11} height={small ? 9 : 11} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+  );
+
+  const renderCalendar = () => (
     <>
-      {/* DOW labels */}
       <div className="grid grid-cols-7 mb-1">
         {DOW_LABELS.map(l => (
           <div key={l} className={`text-center font-semibold text-gray-300 ${compact ? 'text-[10px] py-0.5' : 'text-[11px] py-1'}`}>{l}</div>
         ))}
       </div>
-      {/* Days */}
       {viewMode === 'month' ? (
         <div className={`grid grid-cols-7 ${compact ? 'gap-0.5' : 'gap-1'}`}>
           {calDays.map((dateStr, i) =>
-            dateStr ? <DayCell key={dateStr} dateStr={dateStr} /> : <div key={i} />
+            dateStr
+              ? <DayCell
+                  key={dateStr}
+                  dateStr={dateStr}
+                  compact={compact}
+                  isToday={dateStr === TODAY}
+                  isSelected={dateStr === selectedDate}
+                  hasTodos={hasTodosOnDate(dateStr)}
+                  hasDeadline={!!deadlineDates[dateStr]}
+                  onClick={() => { setSelectedDate(dateStr); if (viewMode === 'week') setCalDate(new Date(dateStr + 'T00:00:00')); }}
+                />
+              : <div key={i} />
           )}
         </div>
       ) : (
         <div className="flex gap-1">
-          {calDays.map(dateStr => <DayCell key={dateStr} dateStr={dateStr} stretch />)}
+          {calDays.map(dateStr => (
+            <DayCell
+              key={dateStr}
+              dateStr={dateStr}
+              compact={compact}
+              isToday={dateStr === TODAY}
+              isSelected={dateStr === selectedDate}
+              hasTodos={hasTodosOnDate(dateStr)}
+              hasDeadline={!!deadlineDates[dateStr]}
+              onClick={() => { setSelectedDate(dateStr); setCalDate(new Date(dateStr + 'T00:00:00')); }}
+            />
+          ))}
         </div>
       )}
     </>
   );
 
-  const TodoList = () => (
+  const renderTodoList = () => (
     <div>
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">할 일</p>
@@ -307,7 +368,7 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
               )}
             </button>
 
-            {/* Text */}
+            {/* Text — input is always rendered to avoid focus loss; visibility controlled */}
             {editingId === todo.id ? (
               <input
                 ref={el => { if (el) inputRefs.current[todo.id] = el; }}
@@ -353,7 +414,7 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
     </div>
   );
 
-  const DeadlineSection = () => {
+  const renderDeadlines = () => {
     if (selectedDeadlines.length === 0) return null;
     return (
       <div className="mt-4">
@@ -371,54 +432,20 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
     );
   };
 
-  const NavButtons = ({ small = false }) => (
-    <div className="flex items-center gap-1">
-      <button
-        onClick={() => setViewMode(v => v === 'month' ? 'week' : 'month')}
-        className={`font-semibold text-gray-400 hover:text-gray-700 px-2 rounded-lg hover:bg-gray-50 transition-colors ${small ? 'text-[10px] py-1' : 'text-xs py-1.5'}`}
-      >
-        {viewMode === 'month' ? 'week' : 'month'}
-      </button>
-      <button onClick={prevPeriod}
-        className={`flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors ${small ? 'w-5 h-5' : 'w-6 h-6'}`}>
-        <svg width={small ? 9 : 11} height={small ? 9 : 11} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
-      <span className={`font-semibold text-gray-700 text-center ${small ? 'text-[10px] min-w-[64px]' : 'text-xs min-w-[80px]'}`}>{calHeader}</span>
-      <button onClick={nextPeriod}
-        className={`flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors ${small ? 'w-5 h-5' : 'w-6 h-6'}`}>
-        <svg width={small ? 9 : 11} height={small ? 9 : 11} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
-    </div>
-  );
-
-  /* ─── COMPACT (Dashboard embed) ─── */
+  /* ─── COMPACT ─── */
   if (compact) {
     return (
       <div className="bg-white rounded-2xl p-5 flex flex-col gap-3 h-full">
-        {/* Header */}
         <div className="flex items-center justify-between flex-shrink-0">
           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">daily log</span>
-          <NavButtons small />
+          {renderNavButtons(true)}
         </div>
-
-        {/* Calendar */}
-        <div className="flex-shrink-0">
-          <CalendarGrid />
-        </div>
-
+        <div className="flex-shrink-0">{renderCalendar()}</div>
         <div className="border-t border-gray-50 flex-shrink-0" />
-
-        {/* Selected date label */}
         <p className="text-xs font-semibold text-gray-700 flex-shrink-0">{selectedDateLabel}</p>
-
-        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto min-h-0 space-y-0">
-          <TodoList />
-          <DeadlineSection />
+          {renderTodoList()}
+          {renderDeadlines()}
           <div className="mt-4">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">메모</p>
             <textarea
@@ -441,12 +468,9 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
       <div className="w-[380px] bg-white border-r border-gray-100 p-6 flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
         <div className="flex items-center justify-between">
           <span className="text-sm font-black text-gray-900 tracking-tight">daily log</span>
-          <NavButtons />
+          {renderNavButtons()}
         </div>
-
-        <CalendarGrid />
-
-        {/* Legend */}
+        {renderCalendar()}
         <div className="flex items-center gap-4 pt-1">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -462,22 +486,18 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
       {/* Right: Todo + Memo */}
       <div className="flex-1 overflow-y-auto p-8">
         <div className="max-w-xl mx-auto space-y-4">
-          {/* Date heading */}
           <h2 className="text-xl font-black text-gray-900 tracking-tight">{selectedDateLabel}</h2>
 
-          {/* Todo card */}
           <div className="bg-white rounded-2xl p-6" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-            <TodoList />
+            {renderTodoList()}
           </div>
 
-          {/* Deadlines card */}
           {selectedDeadlines.length > 0 && (
             <div className="bg-white rounded-2xl p-6" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-              <DeadlineSection />
+              {renderDeadlines()}
             </div>
           )}
 
-          {/* Memo card */}
           <div className="bg-white rounded-2xl p-6" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">메모</p>
             <textarea
