@@ -598,8 +598,8 @@ function JobDetailPage({ job, onBack, onEdit, onDelete, onStatusChange, stacks, 
 
       {/* 2-column body */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* Left: 40% — Job info + Fit */}
-        <div className="overflow-y-auto p-6" style={{ width: '40%', flexShrink: 0 }}>
+        {/* Left: 35% — Job info + Fit */}
+        <div className="overflow-y-auto p-6" style={{ width: '35%', flexShrink: 0 }}>
           <JobInfoPanel
             job={job}
             onEdit={onEdit}
@@ -613,7 +613,7 @@ function JobDetailPage({ job, onBack, onEdit, onDelete, onStatusChange, stacks, 
         {/* Divider */}
         <div className="w-px bg-gray-100 flex-shrink-0" />
 
-        {/* Right: 60% — Cover letter */}
+        {/* Right: 65% — Cover letter */}
         <div className="flex-1 overflow-hidden flex flex-col p-6" style={{ minWidth: 0 }}>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 flex-shrink-0">자기소개서</p>
           <CoverLetterPanel job={job} apiKey={apiKey} />
