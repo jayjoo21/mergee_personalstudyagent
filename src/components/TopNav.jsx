@@ -47,7 +47,7 @@ function LinkBadge({ url }) {
   }
 }
 
-export default function TopNav({ currentView, onNavigate, onOpenSettings, user, onLogout }) {
+export default function TopNav({ currentView, onNavigate, onOpenSettings, user, onLogout, isDemo }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -209,7 +209,7 @@ export default function TopNav({ currentView, onNavigate, onOpenSettings, user, 
                 </svg>
                 API 키 설정
               </button>
-              {user && (
+              {(user || isDemo) && (
                 <button
                   onClick={() => { onLogout?.(); setSettingsOpen(false); }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50"
@@ -217,7 +217,7 @@ export default function TopNav({ currentView, onNavigate, onOpenSettings, user, 
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
-                  로그아웃
+                  {isDemo ? '데모 종료' : '로그아웃'}
                 </button>
               )}
             </div>

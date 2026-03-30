@@ -1,9 +1,24 @@
 import React, { useState, useRef } from 'react';
 
-export default function LandingPage({ onGetStarted, onOpenAuth }) {
+export default function LandingPage({ onGetStarted, onOpenAuth, onDemo }) {
   const handleCTA = onOpenAuth ?? onGetStarted;
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const heroRef = useRef(null);
+  const [showDemoModal, setShowDemoModal] = useState(false);
+  const [demoPass, setDemoPass] = useState('');
+  const [demoError, setDemoError] = useState(false);
+
+  const handleDemoSubmit = (e) => {
+    e?.preventDefault();
+    if (demoPass === 'mergee-dev') {
+      setShowDemoModal(false);
+      setDemoPass('');
+      setDemoError(false);
+      onDemo?.();
+    } else {
+      setDemoError(true);
+    }
+  };
 
   const handleMouseMove = (e) => {
     const rect = heroRef.current?.getBoundingClientRect();
@@ -312,7 +327,55 @@ export default function LandingPage({ onGetStarted, onOpenAuth }) {
       >
         <span className="shimmer-text font-bold">mergee</span>
         {'  '}·{'  '}study hard, get merged.
+        <div className="mt-2">
+          <button
+            onClick={() => { setShowDemoModal(true); setDemoError(false); setDemoPass(''); }}
+            className="text-[11px] text-gray-300 hover:text-gray-400 transition-colors underline-offset-2 hover:underline"
+          >
+            developer demo
+          </button>
+        </div>
       </footer>
+
+      {/* Demo password modal */}
+      {showDemoModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">developer demo</p>
+            <h3 className="text-lg font-black text-gray-900 mb-5">비밀번호를 입력하세요</h3>
+            <form onSubmit={handleDemoSubmit}>
+              <input
+                type="password"
+                value={demoPass}
+                onChange={(e) => { setDemoPass(e.target.value); setDemoError(false); }}
+                placeholder="password"
+                autoFocus
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm font-mono focus:outline-none transition-colors ${
+                  demoError ? 'border-red-300 bg-red-50' : 'border-gray-200 focus:border-gray-400'
+                }`}
+              />
+              {demoError && (
+                <p className="text-xs text-red-500 mt-1.5 font-medium">비밀번호가 올바르지 않습니다.</p>
+              )}
+              <div className="flex gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowDemoModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-[#111] text-white text-sm font-semibold hover:bg-gray-800 transition-colors"
+                >
+                  확인
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

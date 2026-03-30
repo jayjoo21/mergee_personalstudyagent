@@ -16,7 +16,8 @@ import TopNav from './components/TopNav';
 import CounselingPage from './components/CounselingPage';
 import TasksPage from './components/TasksPage';
 import DailyLogCalendar from './components/DailyLogCalendar';
-import { storage, KEYS, pullFromSupabase, setAuthUserId } from './utils/storage';
+import { storage, KEYS, pullFromSupabase, setAuthUserId, enableDemoMode, disableDemoMode } from './utils/storage';
+import { buildDemoStore } from './utils/demoData';
 import { supabase, hasSupabase } from './utils/supabase';
 import { extractWrongNote } from './utils/claude';
 import { getTodayStr } from './utils/helpers';
@@ -157,6 +158,9 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
 
+  /* ─── Demo mode ─── */
+  const [isDemo, setIsDemo] = useState(false);
+
   /* ─── Landing / UI state ─── */
   // When Supabase is active, auth controls access — start as false
   const [started, setStarted] = useState(() => hasSupabase ? false : !!storage.get(KEYS.API_KEY, ''));
@@ -217,8 +221,44 @@ export default function App() {
 
   const handleGoLanding = () => setStarted(false);
 
+  /* ─── Demo mode ─── */
+  const handleEnterDemo = () => {
+    const store = buildDemoStore();
+    enableDemoMode(store);
+    setStacks(store[KEYS.STACKS] || INITIAL_STACKS);
+    setTasks(store[KEYS.TASKS] || []);
+    setTags(store[KEYS.TAGS] || []);
+    setWrongNotes(store[KEYS.WRONG_NOTES] || []);
+    setCounselingLogs(store[KEYS.COUNSELING_LOGS] || []);
+    setStudyActivity(store[KEYS.STUDY_ACTIVITY] || {});
+    setStreakData(store[KEYS.STREAK] || { count: 0, lastDate: null });
+    setConversations(store[KEYS.CONVERSATIONS] || {});
+    setResumeMaterials(store[KEYS.RESUME_MATERIALS] || []);
+    setTimerGoals({});
+    setIsDemo(true);
+    setStarted(true);
+    setCurrentView('dashboard');
+  };
+
+  const handleExitDemo = () => {
+    disableDemoMode();
+    setIsDemo(false);
+    setStarted(false);
+    setCurrentView('dashboard');
+    setSelectedStackId(null);
+  };
+
+  // Auto-enter demo mode when URL is /demo
+  useEffect(() => {
+    if (window.location.pathname === '/demo') {
+      handleEnterDemo();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ─── Auth logout ─── */
   const handleLogout = async () => {
+    if (isDemo) { handleExitDemo(); return; }
     if (hasSupabase) await supabase.auth.signOut();
     else handleGoLanding();
   };
@@ -386,7 +426,11 @@ export default function App() {
   if (!started) {
     return (
       <>
-        <LandingPage onGetStarted={handleGetStarted} onOpenAuth={() => setShowAuth(true)} />
+        <LandingPage
+          onGetStarted={handleGetStarted}
+          onOpenAuth={() => setShowAuth(true)}
+          onDemo={handleEnterDemo}
+        />
         {showAuth && (
           <AuthModal
             onSuccess={() => { /* onAuthStateChange handles state */ }}
@@ -400,7 +444,7 @@ export default function App() {
   return (
     <div
       className="flex h-screen overflow-hidden bg-[#f8f9fa]"
-      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif" }}
+      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif", paddingTop: isDemo ? '28px' : '0' }}
     >
       {/* ── Modals ── */}
       {showApiKey && <ApiKeyModal onSave={handleSaveApiKey} existingKey={apiKey} />}
@@ -434,6 +478,19 @@ export default function App() {
       )}
       {showConfetti && <ConfettiEffect onComplete={() => setShowConfetti(false)} />}
 
+      {/* ── Demo banner ── */}
+      {isDemo && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-400 text-amber-900 text-xs font-semibold text-center py-1 px-4 flex items-center justify-center gap-2">
+          <span>🎯 demo mode — sample data only</span>
+          <button
+            onClick={handleExitDemo}
+            className="ml-3 text-amber-800 hover:text-amber-900 underline underline-offset-2 font-bold"
+          >
+            exit
+          </button>
+        </div>
+      )}
+
       {/* ── Sidebar ── */}
       <Sidebar
         stacks={stacks}
@@ -465,6 +522,7 @@ export default function App() {
           onOpenSettings={() => setShowApiKey(true)}
           user={user}
           onLogout={handleLogout}
+          isDemo={isDemo}
         />
         {currentView === 'dashboard' && (
           <Dashboard

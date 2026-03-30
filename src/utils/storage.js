@@ -1,5 +1,19 @@
 import { supabase, hasSupabase } from './supabase';
 
+/* ─── Demo mode — in-memory only store ─── */
+let _demoMode = false;
+let _demoStore = {};
+
+export function enableDemoMode(initialData = {}) {
+  _demoMode = true;
+  _demoStore = { ...initialData };
+}
+export function disableDemoMode() {
+  _demoMode = false;
+  _demoStore = {};
+}
+export function isDemoMode() { return _demoMode; }
+
 export const KEYS = {
   API_KEY: 'mergee_api_key',
   STACKS: 'mergee_stacks',
@@ -31,6 +45,9 @@ export function setAuthUserId(id) { _authUserId = id; }
 
 export const storage = {
   get: (key, defaultValue = null) => {
+    if (_demoMode) {
+      return key in _demoStore ? _demoStore[key] : defaultValue;
+    }
     try {
       const item = localStorage.getItem(key);
       return item !== null ? JSON.parse(item) : defaultValue;
@@ -39,6 +56,10 @@ export const storage = {
     }
   },
   set: (key, value) => {
+    if (_demoMode) {
+      _demoStore[key] = value; // in-memory only — no localStorage, no Supabase
+      return;
+    }
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
