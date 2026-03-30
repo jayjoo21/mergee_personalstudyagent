@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; // useEffect not needed — localStorage reads are sync
 import { getDday, formatDday, getDdayBadgeClass } from '../utils/helpers';
 import AddTaskModal from './AddTaskModal';
 
@@ -23,6 +23,9 @@ export default function Sidebar({
   onConvertStackToTask,
   onConvertTaskToStack,
 }) {
+  const [stackCollapsed, setStackCollapsed] = useState(
+    () => localStorage.getItem('mergee_stack_collapsed') === 'true'
+  );
   const [unmergeTarget, setUnmergeTarget] = useState(null);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [showAddChoice, setShowAddChoice] = useState(false);
@@ -34,6 +37,12 @@ export default function Sidebar({
   const [stackDropActive, setStackDropActive] = useState(false);
   const [convertConfirm, setConvertConfirm] = useState(null);
   const [convertPrompt, setConvertPrompt] = useState('');
+
+  const toggleStackCollapsed = () => {
+    const next = !stackCollapsed;
+    setStackCollapsed(next);
+    localStorage.setItem('mergee_stack_collapsed', String(next));
+  };
 
   const handleUnmergeClick = (e, stack) => {
     e.stopPropagation();
@@ -187,12 +196,32 @@ export default function Sidebar({
               }
             }}
           >
-            <div className="px-4 mt-3 mb-1.5">
+            <div className="px-4 mt-3 mb-1.5 flex items-center justify-between">
               <span className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${stackDropActive ? 'text-indigo-500' : 'text-gray-300'}`}>
                 {stackDropActive ? 'drop to convert →' : 'My Stack'}
               </span>
+              <button
+                onClick={toggleStackCollapsed}
+                className="w-5 h-5 flex items-center justify-center text-gray-300 hover:text-gray-500 transition-colors rounded"
+                title={stackCollapsed ? '펼치기' : '접기'}
+              >
+                <svg
+                  className="w-3.5 h-3.5 transition-transform duration-300"
+                  style={{ transform: stackCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
             </div>
 
+            <div
+              style={{
+                maxHeight: stackCollapsed ? '0px' : '600px',
+                overflow: 'hidden',
+                transition: 'max-height 0.3s ease',
+              }}
+            >
             <nav className="px-3 space-y-0.5 pb-2">
               {stacks.map((stack) => {
                 const dday = getDday(stack.examDate);
@@ -249,6 +278,7 @@ export default function Sidebar({
                 );
               })}
             </nav>
+            </div>
           </div>
 
           {/* Wrong Notes */}

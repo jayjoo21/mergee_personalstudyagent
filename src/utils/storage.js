@@ -13,6 +13,7 @@ export const KEYS = {
   TAGS: 'mergee_tags',
   TIMER_GOALS: 'mergee_timer_goals',
   QUICK_LINKS: 'mergee_quick_links',
+  STACK_LIBRARY: 'mergee_stack_library',
   USER_ID: 'mergee_user_id',
 };
 
@@ -21,7 +22,7 @@ const SYNCED_KEYS = new Set([
   KEYS.STACKS, KEYS.CONVERSATIONS, KEYS.WRONG_NOTES,
   KEYS.STUDY_ACTIVITY, KEYS.STREAK, KEYS.RESUME_MATERIALS,
   KEYS.COUNSELING_LOGS, KEYS.TASKS, KEYS.TAGS,
-  KEYS.TIMER_GOALS, KEYS.QUICK_LINKS,
+  KEYS.TIMER_GOALS, KEYS.QUICK_LINKS, KEYS.STACK_LIBRARY,
 ]);
 
 // Auth user ID — set by App.jsx when user logs in/out

@@ -6,6 +6,7 @@ import QuizMode from './QuizMode';
 import ContextBriefing from './ContextBriefing';
 import ResourceHub from './ResourceHub';
 import ResumeMaterialModal from './ResumeMaterialModal';
+import StackLibrary from './StackLibrary';
 
 /* ────────────── Typing Indicator ────────────── */
 function TypingIndicator() {
@@ -85,7 +86,7 @@ export default function ChatArea({
   const [savingMaterialId, setSavingMaterialId] = useState(null);
   const [listening, setListening] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'resources'
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'library'
   const [showBriefing, setShowBriefing] = useState(false);
   const [materialMsg, setMaterialMsg] = useState(null); // message to save as material
   const bottomRef = useRef(null);
@@ -209,47 +210,47 @@ export default function ChatArea({
             <span className="text-[11px] text-gray-400">{stack.progress || 0}%</span>
           </div>
 
-          {/* Resources tab button */}
-          <button
-            onClick={() => setActiveTab(activeTab === 'resources' ? 'chat' : 'resources')}
-            className={`h-9 flex items-center gap-1.5 px-3 rounded-xl text-xs font-semibold transition-colors ${
-              activeTab === 'resources' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-            resources
-          </button>
-
-          {/* Quiz button */}
-          <button onClick={() => setShowQuiz(true)}
-            className="h-9 flex items-center gap-1.5 px-3 rounded-xl text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            퀴즈
-          </button>
+          {/* Tabs: chat | quiz | library */}
+          <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`h-7 px-3 rounded-lg text-xs font-semibold transition-colors ${
+                activeTab === 'chat' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              chat
+            </button>
+            <button
+              onClick={() => setShowQuiz(true)}
+              className="h-7 px-3 rounded-lg text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              quiz
+            </button>
+            <button
+              onClick={() => setActiveTab(activeTab === 'library' ? 'chat' : 'library')}
+              className={`h-7 px-3 rounded-lg text-xs font-semibold transition-colors ${
+                activeTab === 'library' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              library
+            </button>
+          </div>
 
           {/* Voice button */}
           <button onClick={toggleSpeech} title="voice input"
-            className={`h-9 flex items-center gap-1.5 px-3 rounded-xl text-xs font-semibold transition-colors ${
+            className={`h-9 w-9 flex items-center justify-center rounded-xl text-xs font-semibold transition-colors ${
               listening ? 'bg-red-100 text-red-500 animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}>
             <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
-            {listening ? '중지' : '음성'}
           </button>
         </div>
       </div>
 
-      {/* Resources tab */}
-      {activeTab === 'resources' ? (
-        <>
-          <Timer stackId={stack.id} goalMinutes={goalMinutes} onSaveSession={onSaveSession} />
-          <ResourceHub stack={stack} apiKey={apiKey} />
-        </>
+      {/* Library tab */}
+      {activeTab === 'library' ? (
+        <StackLibrary stack={stack} apiKey={apiKey} />
       ) : (
         <>
           {/* Timer bar */}
