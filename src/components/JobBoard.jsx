@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { storage } from '../utils/storage';
 import { analyzeJobPostingFull, getJobFitActions, getCareerAdvice } from '../utils/claude';
 import FitAnalysisPanel from './FitAnalysisPanel';
 
-const JOB_COVERS_KEY = 'mergee_job_covers';
+function coverKey(jobId) { return `mergee_coverletter_${jobId}`; }
 
 const STATUSES = ['지원예정', '지원완료', '서류합격', '면접', '최종합격', '불합격'];
 
@@ -192,22 +192,45 @@ function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, a
   const urgent = days !== null && days <= 3;
 
   const [spTab, setSpTab] = useState('info'); // 'info' | 'fit' | 'cover'
-  const [covers, setCovers] = useState(() => storage.get(JOB_COVERS_KEY, {}));
-  const [coverText, setCoverText] = useState(covers[job.id]?.text || '');
+
+  // Cover letter: multi-question
+  const [questions, setQuestions] = useState(() => storage.get(coverKey(job.id), []));
   const [coverFeedback, setCoverFeedback] = useState('');
   const [coverLoading, setCoverLoading] = useState(false);
+  const saveTimerRef = useRef(null);
 
-  const saveCover = () => {
-    const updated = { ...covers, [job.id]: { text: coverText, updatedAt: new Date().toISOString() } };
-    setCovers(updated);
-    storage.set(JOB_COVERS_KEY, updated);
+  const persistQuestions = useCallback((qs) => {
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      storage.set(coverKey(job.id), qs);
+    }, 500);
+  }, [job.id]);
+
+  const addQuestion = () => {
+    const newQ = { id: String(Date.now()), title: '', limit: '', text: '' };
+    const updated = [...questions, newQ];
+    setQuestions(updated);
+    persistQuestions(updated);
+  };
+
+  const updateQuestion = (id, field, value) => {
+    const updated = questions.map(q => q.id === id ? { ...q, [field]: value } : q);
+    setQuestions(updated);
+    persistQuestions(updated);
+  };
+
+  const deleteQuestion = (id) => {
+    const updated = questions.filter(q => q.id !== id);
+    setQuestions(updated);
+    persistQuestions(updated);
   };
 
   const requestFeedback = async () => {
-    if (!coverText.trim()) return;
+    const combined = questions.map((q, i) => `[문항 ${i+1}] ${q.title}\n${q.text}`).join('\n\n');
+    if (!combined.trim()) return;
     setCoverLoading(true);
     try {
-      const result = await getCareerAdvice(apiKey, 'cover', { company: job.company, position: job.position, background: coverText });
+      const result = await getCareerAdvice(apiKey, 'cover', { company: job.company, position: job.position, background: combined });
       setCoverFeedback(result);
     } catch (e) { setCoverFeedback('오류: ' + e.message); }
     finally { setCoverLoading(false); }
@@ -297,34 +320,84 @@ function SlidePanel({ job, onClose, onEdit, onDelete, stacks, resumeMaterials, a
 
           {spTab === 'cover' && (
             <div className="space-y-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">자기소개서</p>
-              <textarea
-                value={coverText}
-                onChange={(e) => setCoverText(e.target.value)}
-                placeholder="이 공고에 대한 자기소개서를 작성하세요..."
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
-                rows={8}
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={saveCover}
-                  className="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-                >
-                  저장
-                </button>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">자기소개서</p>
+                <span className="text-[10px] text-gray-400">{questions.length}개 문항 · 자동저장</span>
+              </div>
+
+              {questions.length === 0 && (
+                <div className="text-center py-8 text-gray-400 text-xs">
+                  문항을 추가해 자소서를 작성해보세요.
+                </div>
+              )}
+
+              {questions.map((q, idx) => {
+                const charCount = q.text.length;
+                const limit = parseInt(q.limit, 10);
+                const overLimit = q.limit && !isNaN(limit) && charCount > limit;
+                return (
+                  <div key={q.id} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-white">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-gray-400 flex-shrink-0">Q{idx + 1}</span>
+                      <input
+                        value={q.title}
+                        onChange={(e) => updateQuestion(q.id, 'title', e.target.value)}
+                        placeholder="문항 제목 (예: 지원 동기)"
+                        className="flex-1 text-xs font-semibold text-gray-700 bg-transparent border-none outline-none placeholder-gray-300"
+                      />
+                      <input
+                        value={q.limit}
+                        onChange={(e) => updateQuestion(q.id, 'limit', e.target.value)}
+                        placeholder="글자수"
+                        className="w-16 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 text-center outline-none focus:ring-1 focus:ring-gray-300"
+                      />
+                      <button
+                        onClick={() => deleteQuestion(q.id)}
+                        className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
+                      >
+                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <textarea
+                      value={q.text}
+                      onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
+                      placeholder="내용을 작성하세요..."
+                      rows={5}
+                      className="w-full text-xs text-gray-700 border border-gray-100 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-gray-300 bg-gray-50"
+                    />
+                    <div className="flex items-center justify-end gap-1">
+                      {overLimit && (
+                        <span className="text-[10px] text-red-500 font-semibold mr-auto">{charCount - limit}자 초과</span>
+                      )}
+                      <span className={`text-[10px] font-semibold ${overLimit ? 'text-red-500' : 'text-gray-400'}`}>
+                        {charCount}{q.limit ? ` / ${q.limit}` : ''}자
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <button
+                onClick={addQuestion}
+                className="w-full py-2 rounded-xl text-xs font-semibold border border-dashed border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors"
+              >
+                + 문항 추가
+              </button>
+
+              {questions.length > 0 && (
                 <button
                   onClick={requestFeedback}
-                  disabled={coverLoading || !coverText.trim()}
-                  className="flex-1 py-2 rounded-xl text-xs font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+                  disabled={coverLoading || questions.every(q => !q.text.trim())}
+                  className="w-full py-2 rounded-xl text-xs font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
                 >
                   {coverLoading ? (
                     <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />첨삭 중...</>
                   ) : 'AI 첨삭'}
                 </button>
-              </div>
-              {covers[job.id]?.updatedAt && (
-                <p className="text-[10px] text-gray-400">마지막 저장: {new Date(covers[job.id].updatedAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
               )}
+
               {coverFeedback && (
                 <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
                   <p className="text-xs font-semibold text-indigo-600 mb-2">AI 첨삭 결과</p>
@@ -492,14 +565,27 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
                       <span className="text-xs text-gray-400 truncate block">{job.notes ? job.notes.slice(0, 40) + (job.notes.length > 40 ? '…' : '') : '—'}</span>
                     </td>
                     <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => { setEditingJob(job); setShowModal(true); }}
-                        className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {(() => {
+                          const qs = storage.get(coverKey(job.id), []);
+                          const hasContent = qs.some(q => q.text?.trim());
+                          return hasContent ? (
+                            <span title="자소서 작성됨" className="w-6 h-6 flex items-center justify-center text-indigo-400">
+                              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </span>
+                          ) : null;
+                        })()}
+                        <button
+                          onClick={() => { setEditingJob(job); setShowModal(true); }}
+                          className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

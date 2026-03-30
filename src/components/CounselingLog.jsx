@@ -1,28 +1,126 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { analyzeCounselingLog } from '../utils/claude';
+import { supabase, hasSupabase } from '../utils/supabase';
+import { storage } from '../utils/storage';
+
+function PaperclipIcon() {
+  return (
+    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="inline-block">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+    </svg>
+  );
+}
+
+function AttachmentThumb({ att, onRemove }) {
+  const [hover, setHover] = useState(false);
+  const isPdf = att.name?.toLowerCase().endsWith('.pdf');
+
+  return (
+    <div
+      className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 group cursor-default"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      {isPdf ? (
+        <div className="w-full h-full bg-red-50 flex flex-col items-center justify-center gap-0.5">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="text-red-400">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="text-[9px] text-red-400 font-semibold">PDF</span>
+        </div>
+      ) : (
+        <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+      )}
+      {hover && onRemove && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(att); }}
+          className="absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity"
+        >
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function CounselingLog({ logs, resumeMaterials, apiKey, onSave, onDelete }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], advisor: '', content: '' });
   const [analyzing, setAnalyzing] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [pendingAttachments, setPendingAttachments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+  const formIdRef = useRef(String(Date.now()));
+
+  const resetForm = () => {
+    setForm({ date: new Date().toISOString().split('T')[0], advisor: '', content: '' });
+    setPendingAttachments([]);
+    formIdRef.current = String(Date.now());
+  };
+
+  const handleFiles = useCallback(async (files) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    const valid = Array.from(files).filter(f => allowed.includes(f.type));
+    if (!valid.length) return;
+
+    const previews = valid.map(f => ({
+      file: f,
+      name: f.name,
+      url: f.type !== 'application/pdf' ? URL.createObjectURL(f) : null,
+      localId: Math.random().toString(36).slice(2),
+    }));
+    setPendingAttachments(prev => [...prev, ...previews]);
+  }, []);
+
+  const removePending = (att) => {
+    if (att.url) URL.revokeObjectURL(att.url);
+    setPendingAttachments(prev => prev.filter(a => a.localId !== att.localId));
+  };
+
+  const uploadAttachments = async (counselingId) => {
+    if (!hasSupabase || !pendingAttachments.length) return [];
+    const userId = storage.getUserId();
+    const results = [];
+    for (const att of pendingAttachments) {
+      const path = `${userId}/${counselingId}/${Date.now()}_${att.name}`;
+      const { error } = await supabase.storage
+        .from('counseling-attachments')
+        .upload(path, att.file, { upsert: true });
+      if (!error) {
+        const { data: urlData } = supabase.storage.from('counseling-attachments').getPublicUrl(path);
+        results.push({ name: att.name, path, url: urlData.publicUrl });
+      }
+    }
+    return results;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.content.trim()) return;
     setAnalyzing(true);
+    setUploading(true);
     let analysis = { summary: '', keywords: [], gaps: '' };
     try {
       analysis = await analyzeCounselingLog(apiKey, form.content, resumeMaterials);
     } catch {}
+
+    const counselingId = formIdRef.current;
+    const attachments = await uploadAttachments(counselingId);
+    setUploading(false);
     setAnalyzing(false);
+
     onSave({
-      id: String(Date.now()),
+      id: counselingId,
       ...form,
       ...analysis,
+      attachments,
       timestamp: new Date().toISOString(),
     });
-    setForm({ date: new Date().toISOString().split('T')[0], advisor: '', content: '' });
+    resetForm();
     setShowForm(false);
   };
 
@@ -51,7 +149,7 @@ export default function CounselingLog({ logs, resumeMaterials, apiKey, onSave, o
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">상담 이력 ({logs.length})</p>
         <button
-          onClick={() => setShowForm((v) => !v)}
+          onClick={() => { setShowForm((v) => !v); if (showForm) resetForm(); }}
           className="h-8 flex items-center gap-1.5 px-3 text-xs font-semibold bg-[#111] text-white rounded-xl hover:bg-gray-800 transition-colors"
         >
           {showForm ? '닫기' : '+ 상담 추가'}
@@ -84,9 +182,41 @@ export default function CounselingLog({ logs, resumeMaterials, apiKey, onSave, o
               rows={4}
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
           </div>
+
+          {/* Upload zone */}
+          <div>
+            <label className="text-xs text-gray-500 font-semibold block mb-1">첨부 파일 (JPG, PNG, PDF)</label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+              className={`border-2 border-dashed rounded-xl px-4 py-4 text-center cursor-pointer transition-colors ${dragOver ? 'border-gray-400 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+            >
+              <p className="text-xs text-gray-400">클릭하거나 파일을 드래그하세요</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+            </div>
+            {pendingAttachments.length > 0 && (
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {pendingAttachments.map(att => (
+                  <AttachmentThumb key={att.localId} att={att} onRemove={removePending} />
+                ))}
+              </div>
+            )}
+          </div>
+
           <button type="submit" disabled={!form.content.trim() || analyzing}
             className="w-full py-2.5 rounded-xl text-sm font-semibold bg-[#111] text-white hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2">
-            {analyzing ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />AI 분석 중...</> : '저장 및 AI 분석'}
+            {analyzing ? (
+              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{uploading ? '업로드 중...' : 'AI 분석 중...'}</>
+            ) : '저장 및 AI 분석'}
           </button>
         </form>
       )}
@@ -109,6 +239,12 @@ export default function CounselingLog({ logs, resumeMaterials, apiKey, onSave, o
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-bold text-gray-800">{log.date}</span>
                     {log.advisor && <span className="text-xs text-gray-400">{log.advisor}</span>}
+                    {log.attachments?.length > 0 && (
+                      <span className="flex items-center gap-0.5 text-xs text-gray-400">
+                        <PaperclipIcon />
+                        {log.attachments.length}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-500 line-clamp-1">{log.content.slice(0, 80)}...</p>
                 </div>
@@ -151,6 +287,20 @@ export default function CounselingLog({ logs, resumeMaterials, apiKey, onSave, o
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">소재 갭 분석</p>
                       <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
                         <p className="text-sm text-amber-800 leading-relaxed">{log.gaps}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Attachments */}
+                  {log.attachments?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">첨부 파일</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {log.attachments.map((att, i) => (
+                          <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
+                            <AttachmentThumb att={att} onRemove={null} />
+                          </a>
+                        ))}
                       </div>
                     </div>
                   )}

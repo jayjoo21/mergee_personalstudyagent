@@ -44,7 +44,7 @@ export const storage = {
       console.error('Storage write error:', e);
     }
     // Fire-and-forget sync to Supabase
-    if (hasSupabase && (SYNCED_KEYS.has(key) || key.startsWith('daily_log_'))) {
+    if (hasSupabase && (SYNCED_KEYS.has(key) || key.startsWith('daily_log_') || key.startsWith('mergee_coverletter_'))) {
       const userId = storage.getUserId();
       if (!userId) return;
       supabase
