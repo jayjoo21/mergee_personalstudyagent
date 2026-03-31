@@ -421,10 +421,12 @@ function TaskDetail({
 
   const taskTags = (task.tags || []).map(id => allTags.find(t => t.id === id)).filter(Boolean);
 
+  const memoRef = useRef(null);
+
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-6 flex flex-col" style={{ minHeight: '100%' }}>
       {/* Header */}
-      <div className="flex items-start justify-between mb-8 gap-4">
+      <div className="flex items-start justify-between mb-6 gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-2">
             <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: task.color }} />
@@ -457,8 +459,9 @@ function TaskDetail({
         </div>
       </div>
 
-      {/* 2-col grid */}
-      <div className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
+      {/* Single-column content stack */}
+      <div className="flex flex-col gap-4 flex-1">
+
         {/* To-do */}
         <div className="bg-white rounded-2xl p-5 shadow-sm">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">To-do</p>
@@ -507,61 +510,75 @@ function TaskDetail({
           </div>
         </div>
 
-        {/* Memo */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">메모</p>
-          <textarea value={memo} onChange={e => setMemo(e.target.value)}
+        {/* Links — compact */}
+        <div className="bg-white rounded-2xl px-5 py-3.5 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">관련 링크</p>
+            {!showLinkForm && (
+              <button onClick={() => setShowLinkForm(true)} className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
+                <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                추가
+              </button>
+            )}
+          </div>
+          {links.length === 0 && !showLinkForm && (
+            <p className="text-xs text-gray-300">등록된 링크가 없어요</p>
+          )}
+          {links.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-1">
+              {links.map(link => (
+                <div key={link.id} className="group flex items-center gap-1 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                  <a href={link.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-indigo-500 hover:text-indigo-700 transition-colors max-w-[180px]">
+                    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="flex-shrink-0">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <span className="truncate">{link.label}</span>
+                  </a>
+                  <button onClick={() => onDeleteLink(link.id)}
+                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 text-base leading-none transition-all ml-1">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {showLinkForm && (
+            <div className="flex flex-col gap-1.5 pt-2 border-t border-gray-100 mt-2">
+              <div className="flex gap-1.5">
+                <input value={newLinkLabel} onChange={e => setNewLinkLabel(e.target.value)} placeholder="링크 이름 (선택)"
+                  className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-300" />
+                <input value={newLinkUrl} onChange={e => setNewLinkUrl(e.target.value)} placeholder="URL"
+                  autoFocus className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                  onKeyDown={e => e.key === 'Enter' && onAddLink()} />
+              </div>
+              <div className="flex gap-1.5">
+                <button onClick={onAddLink} disabled={!newLinkUrl.trim()}
+                  className="flex-1 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-200 transition-colors">추가</button>
+                <button onClick={() => { setShowLinkForm(false); setNewLinkUrl(''); setNewLinkLabel(''); }}
+                  className="px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">취소</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Memo — takes remaining space, click-anywhere-to-focus */}
+        <div
+          className="bg-white rounded-2xl p-5 shadow-sm flex flex-col flex-1 cursor-text"
+          onClick={() => memoRef.current?.focus()}
+        >
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">메모</p>
+          <textarea
+            ref={memoRef}
+            value={memo}
+            onChange={e => setMemo(e.target.value)}
             placeholder="자유롭게 메모하세요..."
-            className="w-full text-sm text-gray-700 placeholder-gray-300 resize-none focus:outline-none bg-transparent leading-relaxed"
-            style={{ minHeight: '160px' }}
+            className="flex-1 w-full text-gray-700 placeholder-gray-300 resize-none focus:outline-none bg-transparent"
+            style={{ minHeight: '250px', fontSize: '14px', lineHeight: '1.8' }}
           />
           {memo && <p className="text-[10px] text-gray-300 mt-2 text-right">자동 저장</p>}
         </div>
-      </div>
 
-      {/* Links */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">관련 링크</p>
-        {links.length === 0 && !showLinkForm && <p className="text-xs text-gray-300 mb-2">등록된 링크가 없어요</p>}
-        {links.length > 0 && (
-          <div className="space-y-2 mb-3">
-            {links.map(link => (
-              <div key={link.id} className="group flex items-center gap-2">
-                <a href={link.url} target="_blank" rel="noopener noreferrer"
-                  className="flex-1 flex items-center gap-2 text-sm text-indigo-500 hover:text-indigo-700 transition-colors min-w-0">
-                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="flex-shrink-0">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                  <span className="truncate">{link.label}</span>
-                </a>
-                <button onClick={() => onDeleteLink(link.id)}
-                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 text-lg leading-none transition-all flex-shrink-0">×</button>
-              </div>
-            ))}
-          </div>
-        )}
-        {showLinkForm ? (
-          <div className="space-y-2 pt-2 border-t border-gray-100">
-            <input value={newLinkLabel} onChange={e => setNewLinkLabel(e.target.value)} placeholder="링크 이름 (선택)"
-              className="w-full text-xs border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-300" />
-            <input value={newLinkUrl} onChange={e => setNewLinkUrl(e.target.value)} placeholder="URL (예: github.com/...)"
-              autoFocus className="w-full text-xs border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
-              onKeyDown={e => e.key === 'Enter' && onAddLink()} />
-            <div className="flex gap-1.5">
-              <button onClick={onAddLink} disabled={!newLinkUrl.trim()}
-                className="flex-1 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-xl hover:bg-gray-700 disabled:bg-gray-200 transition-colors">추가</button>
-              <button onClick={() => { setShowLinkForm(false); setNewLinkUrl(''); setNewLinkLabel(''); }}
-                className="px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-100 rounded-xl transition-colors">취소</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setShowLinkForm(true)} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-            <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            링크 추가
-          </button>
-        )}
       </div>
     </div>
   );
