@@ -16,6 +16,7 @@ import TopNav from './components/TopNav';
 import CounselingPage from './components/CounselingPage';
 import TasksPage from './components/TasksPage';
 import DailyLogCalendar from './components/DailyLogCalendar';
+import MyPage from './components/MyPage';
 import { storage, KEYS, pullFromSupabase, setAuthUserId, enableDemoMode, disableDemoMode } from './utils/storage';
 import { buildDemoStore } from './utils/demoData';
 import { supabase, hasSupabase } from './utils/supabase';
@@ -592,6 +593,18 @@ export default function App() {
             onCreateTag={handleCreateTag}
             onUpdateTag={handleUpdateTag}
             onDeleteTag={handleDeleteTag}
+          />
+        )}
+        {currentView === 'my-page' && (
+          <MyPage
+            user={user}
+            apiKey={apiKey}
+            onSaveApiKey={handleSaveApiKey}
+            stacks={stacks}
+            conversations={conversations}
+            studyActivity={studyActivity}
+            tasks={tasks}
+            onLogout={handleLogout}
           />
         )}
         {currentView === 'counseling-log' && (

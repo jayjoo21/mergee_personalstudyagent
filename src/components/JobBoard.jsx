@@ -434,13 +434,13 @@ function CoverLetterPanel({ job, apiKey }) {
   return (
     <div className="flex h-full min-h-0 relative">
 
-      {/* ── Left Sidebar (200px) ── */}
-      <div className="flex flex-col border-r border-gray-100 flex-shrink-0 bg-white" style={{ width: '200px' }}>
+      {/* ── Left Sidebar (160px) ── */}
+      <div className="flex flex-col border-r border-gray-100 flex-shrink-0 bg-white" style={{ width: '160px' }}>
         {/* Overall progress */}
-        <div className="px-4 pt-4 pb-3 border-b border-gray-50 flex-shrink-0">
+        <div className="px-3 pt-3 pb-2 border-b border-gray-50 flex-shrink-0">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">자기소개서</span>
-            <span className="text-[10px] font-bold text-gray-500">{completedCount}/{questions.length}</span>
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">자기소개서</span>
+            <span className="text-[9px] font-bold text-gray-500">{completedCount}/{questions.length}</span>
           </div>
           <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div
@@ -461,21 +461,21 @@ function CoverLetterPanel({ job, apiKey }) {
               <button
                 key={q.id}
                 onClick={() => setActiveIdx(idx)}
-                className={`w-full text-left px-4 py-2.5 transition-colors flex flex-col gap-1 ${
+                className={`w-full text-left px-3 py-2 transition-colors flex flex-col gap-0.5 ${
                   isActive ? 'bg-indigo-50 border-r-2 border-indigo-500' : 'hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
+                <div className="flex items-center gap-1">
+                  <span className={`w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center flex-shrink-0 ${
                     isActive ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-500'
                   }`}>
                     {idx + 1}
                   </span>
-                  <span className={`text-[11px] font-medium truncate flex-1 ${isActive ? 'text-indigo-700' : 'text-gray-600'}`}>
+                  <span className={`text-[10px] font-medium truncate flex-1 ${isActive ? 'text-indigo-700' : 'text-gray-600'}`}>
                     {q.title || `문항 ${idx + 1}`}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 ml-6">
+                <div className="flex items-center gap-1 ml-5">
                   <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
