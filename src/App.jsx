@@ -362,6 +362,7 @@ export default function App() {
 
   /* ─── Counseling Logs ─── */
   const handleSaveCounselingLog = (log) => setCounselingLogs((prev) => [log, ...prev]);
+  const handleUpdateCounselingLog = (updated) => setCounselingLogs((prev) => prev.map((l) => l.id === updated.id ? updated : l));
   const handleDeleteCounselingLog = (id) => setCounselingLogs((prev) => prev.filter((l) => l.id !== id));
 
   /* ─── Tasks ─── */
@@ -625,6 +626,7 @@ export default function App() {
             resumeMaterials={resumeMaterials}
             apiKey={apiKey}
             onSave={handleSaveCounselingLog}
+            onUpdate={handleUpdateCounselingLog}
             onDelete={handleDeleteCounselingLog}
           />
         )}
