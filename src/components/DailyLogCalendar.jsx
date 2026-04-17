@@ -582,38 +582,36 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = 
   };
 
   const renderNotice = () => (
-    <div className="flex-shrink-0 px-5 pt-4">
-      <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-2 flex items-center gap-2.5">
-        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-amber-400 flex-shrink-0">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-        </svg>
-        {noticeEditing ? (
-          <input
-            autoFocus
-            value={noticeText}
-            onChange={(e) => setNoticeText(e.target.value)}
-            onBlur={() => setNoticeEditing(false)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setNoticeEditing(false); }}
-            placeholder="공지사항을 입력하세요..."
-            className="flex-1 text-xs text-amber-800 bg-transparent outline-none placeholder-amber-300 min-w-0"
-          />
-        ) : (
-          <span
-            onClick={() => setNoticeEditing(true)}
-            className={`flex-1 text-xs cursor-text truncate ${noticeText ? 'text-amber-800' : 'text-amber-300 italic'}`}
-          >
-            {noticeText || '공지사항을 입력하세요... (클릭하여 편집)'}
-          </span>
-        )}
-        <button
-          onClick={() => setNoticeEditing(v => !v)}
-          className="w-5 h-5 flex items-center justify-center text-amber-300 hover:text-amber-600 flex-shrink-0 transition-colors rounded"
+    <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 flex items-center gap-2 flex-shrink-0">
+      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-amber-400 flex-shrink-0">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+      </svg>
+      {noticeEditing ? (
+        <input
+          autoFocus
+          value={noticeText}
+          onChange={(e) => setNoticeText(e.target.value)}
+          onBlur={() => setNoticeEditing(false)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setNoticeEditing(false); }}
+          placeholder="공지사항을 입력하세요..."
+          className="flex-1 text-xs text-amber-800 bg-transparent outline-none placeholder-amber-300 min-w-0"
+        />
+      ) : (
+        <span
+          onClick={() => setNoticeEditing(true)}
+          className={`flex-1 text-xs cursor-text truncate ${noticeText ? 'text-amber-800' : 'text-amber-300 italic'}`}
         >
-          <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-        </button>
-      </div>
+          {noticeText || '공지사항... (클릭하여 편집)'}
+        </span>
+      )}
+      <button
+        onClick={() => setNoticeEditing(v => !v)}
+        className="w-4 h-4 flex items-center justify-center text-amber-300 hover:text-amber-600 flex-shrink-0 transition-colors rounded"
+      >
+        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      </button>
     </div>
   );
 
@@ -728,117 +726,121 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = 
 
   /* ─── FULL PAGE ─── */
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#f8f8f6' }}>
-      {/* Notice widget at very top */}
-      {renderNotice()}
+    <div className="flex-1 flex overflow-hidden" style={{ background: '#f8f8f6' }}>
 
-      {/* Main content area */}
-      <div className="flex-1 flex overflow-hidden mt-3">
-        {/* Left: Calendar panel — collapsible */}
-        {!calendarCollapsed ? (
-          <div className="w-[300px] bg-white border-r border-gray-100 p-5 flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-black text-gray-900 tracking-tight">daily log</span>
-              <div className="flex items-center gap-0.5">
-                {renderNavButtons()}
-                <button
-                  onClick={() => setCalendarCollapsed(true)}
-                  title="캘린더 접기"
-                  className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors ml-1"
-                >
-                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            {renderCalendar()}
-            <div className="flex flex-col gap-1.5 pt-1">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span className="text-[11px] text-gray-400">할 일 있음</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-red-400" />
-                  <span className="text-[11px] text-gray-400">마감일</span>
-                </div>
-              </div>
-              {draggingTask && (
-                <div className="flex items-center gap-1.5 bg-blue-50 rounded-lg px-2.5 py-1.5">
-                  <span className="w-2 h-2 rounded-full bg-blue-400" />
-                  <span className="text-[11px] text-blue-600 font-semibold">날짜 위에 드롭하여 추가</span>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* Collapsed: thin strip with expand button */
-          <div className="w-9 bg-white border-r border-gray-100 flex-shrink-0 flex flex-col items-center pt-3">
+      {/* Left: Calendar panel — collapsible */}
+      {!calendarCollapsed ? (
+        <div className="w-[280px] bg-white border-r border-gray-100 p-4 flex-shrink-0 flex flex-col gap-3 overflow-y-auto">
+          {/* Nav buttons + collapse toggle — no title */}
+          <div className="flex items-center justify-between">
+            {renderNavButtons()}
             <button
-              onClick={() => setCalendarCollapsed(false)}
-              title="캘린더 펼치기"
-              className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+              onClick={() => setCalendarCollapsed(true)}
+              title="캘린더 접기"
+              className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
             >
               <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
           </div>
-        )}
-
-        {/* Content area: two-column layout — fills all remaining space */}
-        <div className="flex-1 flex overflow-hidden p-5 gap-5">
-
-          {/* Center column: date header + timetable + todo list + deadlines */}
-          <div className="flex-1 flex flex-col gap-4 overflow-y-auto min-w-0 pb-5 pr-1">
-            <h2 className="text-xl font-black text-gray-900 tracking-tight flex-shrink-0">{selectedDateLabel}</h2>
-
-            {timetable.length > 0 && (() => { const c = timetable.filter(cls => cls.day?.split(',').map(d=>d.trim()).includes(DOW_KO[new Date(selectedDate+'T00:00:00').getDay()])); return c.length > 0; })() && (
-              <div className="bg-white rounded-2xl p-5 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-                {renderTimeline()}
+          {renderCalendar()}
+          <div className="flex flex-col gap-1.5 pt-0.5">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="text-[10px] text-gray-300">할 일 있음</span>
               </div>
-            )}
-
-            <div className="bg-white rounded-2xl p-5 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-              {renderTodoList()}
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                <span className="text-[10px] text-gray-300">마감일</span>
+              </div>
             </div>
-
-            {selectedDeadlines.length > 0 && (
-              <div className="bg-white rounded-2xl p-5 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-                {renderDeadlines()}
+            {draggingTask && (
+              <div className="flex items-center gap-1.5 bg-blue-50 rounded-lg px-2 py-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                <span className="text-[10px] text-blue-600 font-semibold">날짜 위에 드롭하여 추가</span>
               </div>
             )}
           </div>
-
-          {/* Right column: Tasks (top) + Links + Memo (fills remaining height) */}
-          <div className="w-[360px] flex-shrink-0 flex flex-col pb-5 gap-4 min-h-0">
-            {/* Tasks panel at top */}
-            {tasks.filter(t => !t.done).length > 0 && (
-              <div className="bg-white rounded-2xl p-4 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-                {renderTasksPanel()}
-              </div>
-            )}
-
-            {/* Links section */}
-            {renderDailyLinks()}
-
-            {/* Memo — fills all remaining vertical space */}
-            <div
-              className="bg-white rounded-2xl p-5 flex flex-col flex-1 min-h-0"
-              style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}
-            >
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex-shrink-0">메모</p>
-              <textarea
-                value={memo}
-                onChange={(e) => handleMemoChange(e.target.value)}
-                placeholder="오늘의 메모를 자유롭게 작성하세요..."
-                className="flex-1 w-full resize-none text-sm text-gray-700 bg-transparent focus:outline-none placeholder-gray-300 leading-relaxed min-h-0"
-              />
-            </div>
-          </div>
-
         </div>
+      ) : (
+        /* Collapsed: thin strip */
+        <div className="w-9 bg-white border-r border-gray-100 flex-shrink-0 flex flex-col items-center pt-3">
+          <button
+            onClick={() => setCalendarCollapsed(false)}
+            title="캘린더 펼치기"
+            className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Content area: center + right columns */}
+      <div className="flex-1 flex overflow-hidden p-5 gap-5 min-w-0">
+
+        {/* Center column: date header + timetable + todo list + deadlines */}
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto min-w-0 pb-5 pr-1">
+          <h2 className="text-xl font-black text-gray-900 tracking-tight flex-shrink-0">{selectedDateLabel}</h2>
+
+          {timetable.length > 0 && (() => {
+            const c = timetable.filter(cls => cls.day?.split(',').map(d => d.trim()).includes(DOW_KO[new Date(selectedDate + 'T00:00:00').getDay()]));
+            return c.length > 0;
+          })() && (
+            <div className="bg-white rounded-2xl p-5 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+              {renderTimeline()}
+            </div>
+          )}
+
+          <div className="bg-white rounded-2xl p-5 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+            {renderTodoList()}
+          </div>
+
+          {selectedDeadlines.length > 0 && (
+            <div className="bg-white rounded-2xl p-5 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+              {renderDeadlines()}
+            </div>
+          )}
+        </div>
+
+        {/* Right column: Notice → Tasks → Links → Memo(flex-1) */}
+        <div className="w-[340px] flex-shrink-0 flex flex-col pb-5 gap-3 min-h-0">
+
+          {/* 공통 공지 */}
+          {renderNotice()}
+
+          {/* Tasks 가져오기 */}
+          {tasks.filter(t => !t.done).length > 0 && (
+            <div className="bg-white rounded-2xl p-4 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+              {renderTasksPanel()}
+            </div>
+          )}
+
+          {/* 관련 링크 */}
+          {renderDailyLinks()}
+
+          {/* 메모 — 화면 하단까지 노트패드처럼 확장 */}
+          <div
+            className="bg-white rounded-2xl flex flex-col flex-1 min-h-0 overflow-hidden"
+            style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}
+          >
+            <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0 border-b border-gray-50">
+              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">메모</span>
+              <span className="text-[10px] text-gray-200">{memo.length > 0 ? `${memo.length}자` : ''}</span>
+            </div>
+            <textarea
+              value={memo}
+              onChange={(e) => handleMemoChange(e.target.value)}
+              placeholder={`${selectedDateLabel.split(' ').slice(-1)[0]} 기록...`}
+              className="flex-1 w-full resize-none px-5 py-4 text-sm text-gray-700 bg-transparent focus:outline-none placeholder-gray-200 leading-7 min-h-0"
+              style={{ fontFamily: 'inherit' }}
+            />
+          </div>
+        </div>
+
       </div>
     </div>
   );
