@@ -13,14 +13,22 @@ function IconCampus() {
 function IconHabit() {
   return (
     <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      <rect x="3" y="3" width="4" height="4" rx="0.5"/>
+      <rect x="10" y="3" width="4" height="4" rx="0.5"/>
+      <rect x="17" y="3" width="4" height="4" rx="0.5"/>
+      <rect x="3" y="10" width="4" height="4" rx="0.5"/>
+      <rect x="10" y="10" width="4" height="4" rx="0.5"/>
+      <rect x="17" y="10" width="4" height="4" rx="0.5"/>
+      <rect x="3" y="17" width="4" height="4" rx="0.5"/>
+      <rect x="10" y="17" width="4" height="4" rx="0.5"/>
+      <rect x="17" y="17" width="4" height="4" rx="0.5"/>
     </svg>
   );
 }
 function IconCounseling() {
   return (
     <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
     </svg>
   );
 }
@@ -31,31 +39,67 @@ function IconDailyLog() {
     </svg>
   );
 }
+function IconStack() {
+  return (
+    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5z"/>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2 12l10 5 10-5"/>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2 17l10 5 10-5"/>
+    </svg>
+  );
+}
+function IconPortfolio() {
+  return (
+    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 12v4m-2-2h4"/>
+    </svg>
+  );
+}
 
 const FEATURES = [
   {
     Icon: IconCampus,
     accent: '#6366f1',
     title: 'campus life',
-    desc: 'AI timetable scanner. One screenshot of your Everytime schedule, and your campus life syncs automatically.',
+    subtitle: 'AI Timetable Scanner',
+    desc: 'Upload your Everytime screenshot to sync your academic schedule automatically.',
   },
   {
     Icon: IconHabit,
     accent: '#10b981',
     title: 'habit tracker',
-    desc: 'Sustainable routine management. Visualize your growth on a monthly matrix and grow your activity garden.',
+    subtitle: 'Routine Matrix',
+    desc: 'Visualize your growth with a monthly matrix and maintain your study streaks.',
   },
   {
     Icon: IconCounseling,
     accent: '#f59e0b',
-    title: 'AI counseling log',
-    desc: 'Deep session analysis. Your raw consultation notes become structured feedback reports and action items — powered by AI.',
+    title: 'AI counseling',
+    subtitle: 'Deep Insight Analysis',
+    desc: 'Transform raw session notes into structured emotional reports and AI solutions.',
   },
   {
     Icon: IconDailyLog,
     accent: '#0ea5e9',
     title: 'smart daily log',
-    desc: 'Memo-first daily management. Todos, long-form notes, and task imports — all in one fluid, distraction-free canvas.',
+    subtitle: 'Memo-First Workspace',
+    desc: 'A seamless integration of long-form notes, tasks, and link management.',
+  },
+  {
+    Icon: IconStack,
+    accent: '#8b5cf6',
+    title: 'study stack',
+    subtitle: 'Knowledge Asset Manager',
+    desc: 'Track your certifications and skills with D-day countdowns and progress bars.',
+  },
+  {
+    Icon: IconPortfolio,
+    accent: '#f97316',
+    title: 'portfolio builder',
+    subtitle: 'Career-Ready Insights',
+    desc: 'Organize your project thoughts and rationales into a professional portfolio layout.',
   },
 ];
 
@@ -211,7 +255,7 @@ export default function LandingPage({ onGetStarted, onOpenAuth, onDemo }) {
 
       {/* ── Features ── */}
       <section id="features" className="py-28 px-6" style={{ background: '#f5f5f3' }}>
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Section label */}
           <p className="text-center text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
             features
@@ -223,22 +267,25 @@ export default function LandingPage({ onGetStarted, onOpenAuth, onDemo }) {
             everything you need to merge.
           </h2>
 
-          {/* 2 × 2 feature grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {FEATURES.map(({ Icon, accent, title, desc }) => (
+          {/* 3 × 2 feature grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {FEATURES.map(({ Icon, accent, title, subtitle, desc }) => (
               <div
                 key={title}
-                className="bg-white rounded-2xl p-7 shadow-sm hover:shadow-md transition-all duration-200 group"
+                className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 group"
                 style={{ borderTop: `3px solid ${accent}` }}
               >
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform duration-200 group-hover:scale-110"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-transform duration-200 group-hover:scale-110"
                   style={{ backgroundColor: accent + '18', color: accent }}
                 >
                   <Icon />
                 </div>
-                <h3 className="font-black text-gray-900 mb-2" style={{ fontSize: '17px', letterSpacing: '-0.3px' }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: accent }}>
                   {title}
+                </p>
+                <h3 className="font-black text-gray-900 mb-2" style={{ fontSize: '15px', letterSpacing: '-0.3px' }}>
+                  {subtitle}
                 </h3>
                 <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
               </div>
