@@ -22,6 +22,8 @@ const LINK_COLORS = {
 };
 
 const TOOLS = [
+  { key: 'habit-tracker', label: 'habit tracker', emoji: '🌱' },
+  { key: 'campus-life', label: 'campus life', emoji: '🎓' },
   { key: 'stack-clash', label: 'stack clash', emoji: '⚡' },
   { key: 'weak-sniper', label: 'weak sniper', emoji: '🎯' },
   { key: 'merge-report', label: 'merge report', emoji: '📊' },
@@ -47,7 +49,7 @@ function LinkBadge({ url }) {
   }
 }
 
-export default function TopNav({ currentView, onNavigate, onOpenSettings, user, onLogout, isDemo }) {
+export default function TopNav({ currentView, onNavigate, onOpenSettings, user, onLogout, isDemo, onNavigateMyPage }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -109,7 +111,7 @@ export default function TopNav({ currentView, onNavigate, onOpenSettings, user, 
     setLinks((prev) => prev.filter((l) => l.id !== id));
   };
 
-  const isToolView = ['stack-clash', 'weak-sniper', 'merge-report'].includes(currentView);
+  const isToolView = ['stack-clash', 'weak-sniper', 'merge-report', 'habit-tracker', 'campus-life'].includes(currentView);
 
   return (
     <div className="h-10 bg-white border-b border-gray-100 flex items-center justify-end px-5 flex-shrink-0 relative z-10">
@@ -157,6 +159,19 @@ export default function TopNav({ currentView, onNavigate, onOpenSettings, user, 
         </div>
 
         <div className="w-px h-4 bg-gray-200 mx-0.5" />
+
+        {/* My Page button */}
+        <button
+          onClick={() => onNavigateMyPage?.()}
+          title="My Page"
+          className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+            currentView === 'my-page' ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'
+          }`}
+        >
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </button>
 
         {/* Links button */}
         <button

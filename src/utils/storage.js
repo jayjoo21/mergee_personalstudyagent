@@ -29,6 +29,9 @@ export const KEYS = {
   QUICK_LINKS: 'mergee_quick_links',
   STACK_LIBRARY: 'mergee_stack_library',
   USER_ID: 'mergee_user_id',
+  HABITS: 'mergee_habits',
+  TIMETABLE: 'mergee_timetable',
+  HABIT_LOGS: 'mergee_habit_logs',
 };
 
 // Keys that are synced to Supabase (exclude sensitive API key)

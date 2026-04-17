@@ -585,7 +585,7 @@ function CoverLetterPanel({ job, apiKey }) {
                 value={activeQ.title}
                 onChange={(e) => updateQuestion(activeQ.id, 'title', e.target.value)}
                 placeholder="문항 제목을 입력하세요..."
-                className="flex-1 text-base font-bold text-gray-800 bg-transparent border-none outline-none placeholder-gray-300"
+                className="flex-1 text-sm font-semibold text-gray-700 bg-transparent border-none outline-none placeholder-gray-200"
               />
               <div className="flex items-center gap-1 flex-shrink-0">
                 <input
@@ -740,40 +740,49 @@ function CoverLetterPanel({ job, apiKey }) {
 
       {/* ── Delete Modal ── */}
       {deleteModal && (
-        <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-80">
-            <h3 className="text-sm font-bold text-gray-800 mb-3">문항 삭제</h3>
-            {deleteModal.charCount > 0 ? (
-              <>
-                <p className="text-xs text-gray-500 mb-1">
-                  이 문항에는 <span className="font-bold text-gray-700">{deleteModal.charCount.toLocaleString()}자</span>가 작성되어 있습니다.
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-80 border border-red-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-800">문항 삭제</h3>
+                <p className="text-[10px] text-red-500 font-semibold">삭제 후 복구 불가</p>
+              </div>
+            </div>
+            {deleteModal.charCount > 0 && (
+              <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 mb-3">
+                <p className="text-xs text-red-700">
+                  이 문항에는 <span className="font-black text-red-800">{deleteModal.charCount.toLocaleString()}자</span>가 작성되어 있습니다.
                 </p>
-                <p className="text-xs text-gray-500 mb-3">
-                  삭제하려면 아래에 <span className="font-bold text-gray-700">"삭제"</span>를 입력하세요.
-                </p>
-                <input
-                  autoFocus
-                  value={deleteInput}
-                  onChange={e => setDeleteInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && deleteInput === '삭제' && confirmDelete()}
-                  placeholder="삭제"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-red-200"
-                />
-              </>
-            ) : (
-              <p className="text-xs text-gray-500 mb-4">정말 삭제하시겠어요?</p>
+              </div>
             )}
+            <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+              삭제된 내용은 <span className="font-bold text-red-600">복구할 수 없습니다</span>.<br />
+              계속하려면 아래에 <span className="font-bold text-gray-800 bg-gray-100 px-1 rounded">"삭제"</span>를 입력하세요.
+            </p>
+            <input
+              autoFocus
+              value={deleteInput}
+              onChange={e => setDeleteInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && deleteInput === '삭제' && confirmDelete()}
+              placeholder="삭제"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300"
+            />
             <div className="flex gap-2">
               <button
                 onClick={confirmDelete}
-                disabled={deleteModal.charCount > 0 && deleteInput !== '삭제'}
-                className="flex-1 py-2 text-sm font-semibold bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={deleteInput !== '삭제'}
+                className="flex-1 py-2.5 text-sm font-semibold bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 삭제
               </button>
               <button
-                onClick={() => setDeleteModal(null)}
-                className="flex-1 py-2 text-sm font-semibold text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                onClick={() => { setDeleteModal(null); setDeleteInput(''); }}
+                className="flex-1 py-2.5 text-sm font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 취소
               </button>
@@ -942,7 +951,7 @@ function JobDetailPage({ job, onBack, onEdit, onDelete, onStatusChange, stacks, 
       {/* 2-column body */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Left: 35% */}
-        <div className="overflow-y-auto p-6" style={{ width: '35%', flexShrink: 0 }}>
+        <div className="overflow-y-auto p-6" style={{ width: '28%', flexShrink: 0 }}>
           <JobInfoPanel job={job} onEdit={onEdit} stacks={stacks} resumeMaterials={resumeMaterials} apiKey={apiKey} onAddToPlan={onAddToPlan} />
         </div>
         <div className="w-px bg-gray-100 flex-shrink-0" />

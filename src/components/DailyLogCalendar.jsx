@@ -33,15 +33,18 @@ function hasTodosOnDate(dateStr) {
 }
 
 /* ── DayCell: defined OUTSIDE main component to keep stable identity ── */
-function DayCell({ dateStr, compact, isToday, isSelected, hasTodos, hasDeadline, onClick }) {
+function DayCell({ dateStr, compact, isToday, isSelected, hasTodos, hasDeadline, onClick, isDragTarget, onDragOver, onDrop }) {
   if (!dateStr) return <div />;
   const dayNum = parseInt(dateStr.split('-')[2], 10);
   const h = compact ? 'h-7' : 'h-9';
   return (
     <button
       onClick={onClick}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
       className={`relative flex flex-col items-center justify-center rounded-lg transition-all duration-100 ${h} ${
-        isToday ? 'bg-gray-900 text-white'
+        isDragTarget ? 'bg-blue-100 ring-2 ring-blue-400 text-blue-700'
+        : isToday ? 'bg-gray-900 text-white'
         : isSelected ? 'bg-gray-100 text-gray-900 ring-1 ring-gray-300'
         : 'text-gray-600 hover:bg-gray-50'
       }`}
@@ -58,7 +61,9 @@ function DayCell({ dateStr, compact, isToday, isSelected, hasTodos, hasDeadline,
 }
 
 /* ── Main component ── */
-export default function DailyLogCalendar({ tasks = [], stacks = [], compact = false }) {
+const DOW_KO = ['일','월','화','수','목','금','토'];
+
+export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = [], compact = false, onRecordActivity }) {
   const TODAY = todayStr();
   const [selectedDate, setSelectedDate] = useState(TODAY);
   const [viewMode, setViewMode] = useState('month');
@@ -70,9 +75,20 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
   const [editingId, setEditingId] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [draggingTask, setDraggingTask] = useState(null);
+  const [dropTargetDate, setDropTargetDate] = useState(null);
+  const [showTaskPanel, setShowTaskPanel] = useState(false);
+  const [calendarCollapsed, setCalendarCollapsed] = useState(false);
+  const [noticeText, setNoticeText] = useState(() => storage.get('mergee_daily_notice', ''));
+  const [noticeEditing, setNoticeEditing] = useState(false);
+  const [dailyLinks, setDailyLinks] = useState(() => storage.get('mergee_daily_links', []));
+  const [showLinkAdd, setShowLinkAdd] = useState(false);
+  const [newLinkLabel, setNewLinkLabel] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
 
   const inputRefs = useRef({});
   const memoTimer = useRef(null);
+  const noticeTimer = useRef(null);
 
   /* Load on date change */
   useEffect(() => {
@@ -183,6 +199,50 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
   }, [dragIndex, selectedDate, memo]);
   const onDragEnd = () => { setDragIndex(null); setDragOverIndex(null); };
 
+  /* Task → date drag-drop */
+  const handleTaskDropOnDate = useCallback((dateStr, task) => {
+    if (!task) return;
+    const log = loadLog(dateStr);
+    const newTodo = { id: `dl_${Date.now()}`, text: task.name, done: false };
+    const updated = { todos: [...(log.todos || []), newTodo], memo: log.memo || '' };
+    saveLog(dateStr, updated);
+    if (dateStr === selectedDate) {
+      setTodos(prev => [...prev, newTodo]);
+    }
+    setDraggingTask(null);
+    setDropTargetDate(null);
+  }, [selectedDate]);
+
+  /* Task → selected date (click + button) */
+  const addTaskAsTodo = useCallback((task) => {
+    const newTodo = { id: `dl_${Date.now()}`, text: task.name, done: false };
+    setTodos(prev => {
+      const next = [...prev, newTodo];
+      saveLog(selectedDate, { todos: next, memo });
+      return next;
+    });
+  }, [selectedDate, memo]);
+
+  /* Notice & daily links persistence */
+  useEffect(() => {
+    clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => storage.set('mergee_daily_notice', noticeText), 400);
+    return () => clearTimeout(noticeTimer.current);
+  }, [noticeText]);
+
+  useEffect(() => {
+    storage.set('mergee_daily_links', dailyLinks);
+  }, [dailyLinks]);
+
+  const addDailyLink = useCallback(() => {
+    if (!newLinkUrl.trim()) return;
+    const url = /^https?:\/\//.test(newLinkUrl.trim()) ? newLinkUrl.trim() : 'https://' + newLinkUrl.trim();
+    setDailyLinks(prev => [...prev, { id: String(Date.now()), label: newLinkLabel.trim(), url }]);
+    setNewLinkLabel('');
+    setNewLinkUrl('');
+    setShowLinkAdd(false);
+  }, [newLinkLabel, newLinkUrl]);
+
   /* Memo: update local state immediately, debounce save */
   const handleMemoChange = useCallback((val) => {
     setMemo(val);
@@ -291,6 +351,9 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
                   hasTodos={hasTodosOnDate(dateStr)}
                   hasDeadline={!!deadlineDates[dateStr]}
                   onClick={() => { setSelectedDate(dateStr); if (viewMode === 'week') setCalDate(new Date(dateStr + 'T00:00:00')); }}
+                  isDragTarget={!!draggingTask && dropTargetDate === dateStr}
+                  onDragOver={draggingTask ? (e) => { e.preventDefault(); setDropTargetDate(dateStr); } : undefined}
+                  onDrop={draggingTask ? (e) => { e.preventDefault(); handleTaskDropOnDate(dateStr, draggingTask); } : undefined}
                 />
               : <div key={i} />
           )}
@@ -307,6 +370,9 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
               hasTodos={hasTodosOnDate(dateStr)}
               hasDeadline={!!deadlineDates[dateStr]}
               onClick={() => { setSelectedDate(dateStr); setCalDate(new Date(dateStr + 'T00:00:00')); }}
+              isDragTarget={!!draggingTask && dropTargetDate === dateStr}
+              onDragOver={draggingTask ? (e) => { e.preventDefault(); setDropTargetDate(dateStr); } : undefined}
+              onDrop={draggingTask ? (e) => { e.preventDefault(); handleTaskDropOnDate(dateStr, draggingTask); } : undefined}
             />
           ))}
         </div>
@@ -414,6 +480,89 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
     </div>
   );
 
+  const renderTasksPanel = () => {
+    const available = tasks.filter(t => !t.done);
+    if (available.length === 0) return null;
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tasks 가져오기</p>
+          <button
+            onClick={() => setShowTaskPanel(v => !v)}
+            className="text-[10px] font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            {showTaskPanel ? '닫기 ↑' : `${available.length}개 펼치기 ↓`}
+          </button>
+        </div>
+        {!showTaskPanel && (
+          <p className="text-[11px] text-gray-300 py-0.5">
+            Task를 달력 날짜에 드래그하거나 + 버튼으로 오늘에 추가하세요
+          </p>
+        )}
+        {showTaskPanel && (
+          <div className="space-y-0.5">
+            {available.slice(0, 20).map(task => (
+              <div
+                key={task.id}
+                draggable
+                onDragStart={() => setDraggingTask(task)}
+                onDragEnd={() => { setDraggingTask(null); setDropTargetDate(null); }}
+                className="group flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-grab active:opacity-50 transition-all"
+              >
+                <div className="w-3 flex-shrink-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-30 transition-opacity cursor-grab">
+                  {[0,1,2].map(i => <span key={i} className="block w-3 h-0.5 bg-gray-400 rounded" />)}
+                </div>
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: task.color || '#6366f1' }} />
+                <span className="flex-1 text-xs text-gray-600 truncate">{task.name}</span>
+                {task.dueDate && (
+                  <span className="text-[10px] text-gray-300 flex-shrink-0">~{task.dueDate.slice(5)}</span>
+                )}
+                <button
+                  onClick={() => addTaskAsTodo(task)}
+                  className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all flex-shrink-0 text-sm font-bold"
+                  title={`"${task.name}"을 오늘 할 일에 추가`}
+                >
+                  +
+                </button>
+              </div>
+            ))}
+            {available.length > 20 && (
+              <p className="text-[10px] text-gray-300 px-2 py-1">+ {available.length - 20}개 더 있음</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderTimeline = () => {
+    if (!timetable || timetable.length === 0) return null;
+    const selectedDow = new Date(selectedDate + 'T00:00:00').getDay();
+    const todayClasses = timetable.filter(cls => {
+      if (!cls.day) return false;
+      return cls.day.split(',').map(d => d.trim()).includes(DOW_KO[selectedDow]);
+    }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    if (todayClasses.length === 0) return null;
+    return (
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">오늘 수업</p>
+        <div className="space-y-1.5">
+          {todayClasses.map(cls => (
+            <div key={cls.id} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ backgroundColor: cls.color + '15', borderLeft: `3px solid ${cls.color}` }}>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-800 truncate">{cls.subject}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {cls.time && <span className="text-[10px] text-gray-500">{cls.time}</span>}
+                  {cls.room && <span className="text-[10px] text-gray-400">📍{cls.room}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderDeadlines = () => {
     if (selectedDeadlines.length === 0) return null;
     return (
@@ -432,6 +581,121 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
     );
   };
 
+  const renderNotice = () => (
+    <div className="flex-shrink-0 px-5 pt-4">
+      <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-2 flex items-center gap-2.5">
+        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-amber-400 flex-shrink-0">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+        </svg>
+        {noticeEditing ? (
+          <input
+            autoFocus
+            value={noticeText}
+            onChange={(e) => setNoticeText(e.target.value)}
+            onBlur={() => setNoticeEditing(false)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setNoticeEditing(false); }}
+            placeholder="공지사항을 입력하세요..."
+            className="flex-1 text-xs text-amber-800 bg-transparent outline-none placeholder-amber-300 min-w-0"
+          />
+        ) : (
+          <span
+            onClick={() => setNoticeEditing(true)}
+            className={`flex-1 text-xs cursor-text truncate ${noticeText ? 'text-amber-800' : 'text-amber-300 italic'}`}
+          >
+            {noticeText || '공지사항을 입력하세요... (클릭하여 편집)'}
+          </span>
+        )}
+        <button
+          onClick={() => setNoticeEditing(v => !v)}
+          className="w-5 h-5 flex items-center justify-center text-amber-300 hover:text-amber-600 flex-shrink-0 transition-colors rounded"
+        >
+          <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderDailyLinks = () => (
+    <div className="bg-white rounded-2xl p-4 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">관련 링크</p>
+        <button
+          onClick={() => setShowLinkAdd(v => !v)}
+          className="w-5 h-5 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+        >
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+
+      {dailyLinks.length === 0 && !showLinkAdd && (
+        <p className="text-xs text-gray-300 py-0.5">링크를 추가해보세요</p>
+      )}
+
+      <div className="space-y-0.5">
+        {dailyLinks.map(link => (
+          <div key={link.id} className="group flex items-center gap-2 py-1.5 px-1 rounded-lg hover:bg-gray-50 transition-colors">
+            <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-300 flex-shrink-0">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            <a
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 min-w-0 text-xs text-blue-500 hover:text-blue-700 hover:underline truncate"
+            >
+              {link.label || link.url.replace(/^https?:\/\//, '')}
+            </a>
+            <button
+              onClick={() => setDailyLinks(prev => prev.filter(l => l.id !== link.id))}
+              className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center text-gray-300 hover:text-red-400 transition-all flex-shrink-0"
+            >
+              <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {showLinkAdd && (
+        <div className="mt-2 space-y-1.5">
+          <input
+            value={newLinkLabel}
+            onChange={(e) => setNewLinkLabel(e.target.value)}
+            placeholder="이름 (선택)"
+            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+          />
+          <input
+            value={newLinkUrl}
+            onChange={(e) => setNewLinkUrl(e.target.value)}
+            placeholder="URL (예: github.com)"
+            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-300"
+            onKeyDown={(e) => { if (e.key === 'Enter') addDailyLink(); }}
+          />
+          <div className="flex gap-1.5">
+            <button
+              onClick={addDailyLink}
+              disabled={!newLinkUrl.trim()}
+              className="flex-1 py-1.5 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-200 transition-colors"
+            >
+              추가
+            </button>
+            <button
+              onClick={() => { setShowLinkAdd(false); setNewLinkLabel(''); setNewLinkUrl(''); }}
+              className="px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   /* ─── COMPACT ─── */
   if (compact) {
     return (
@@ -444,6 +708,7 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
         <div className="border-t border-gray-50 flex-shrink-0" />
         <p className="text-xs font-semibold text-gray-700 flex-shrink-0">{selectedDateLabel}</p>
         <div className="flex-1 overflow-y-auto min-h-0 space-y-0">
+          {renderTimeline() && <div className="mb-3">{renderTimeline()}</div>}
           {renderTodoList()}
           {renderDeadlines()}
           <div className="mt-4">
@@ -463,51 +728,116 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], compact = fa
 
   /* ─── FULL PAGE ─── */
   return (
-    <div className="flex-1 flex overflow-hidden" style={{ background: '#f8f8f6' }}>
-      {/* Left: Calendar panel */}
-      <div className="w-[380px] bg-white border-r border-gray-100 p-6 flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-black text-gray-900 tracking-tight">daily log</span>
-          {renderNavButtons()}
-        </div>
-        {renderCalendar()}
-        <div className="flex items-center gap-4 pt-1">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-[11px] text-gray-400">할 일 있음</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-400" />
-            <span className="text-[11px] text-gray-400">마감일</span>
-          </div>
-        </div>
-      </div>
+    <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#f8f8f6' }}>
+      {/* Notice widget at very top */}
+      {renderNotice()}
 
-      {/* Right: Todo + Memo */}
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-xl mx-auto space-y-4">
-          <h2 className="text-xl font-black text-gray-900 tracking-tight">{selectedDateLabel}</h2>
-
-          <div className="bg-white rounded-2xl p-6" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-            {renderTodoList()}
-          </div>
-
-          {selectedDeadlines.length > 0 && (
-            <div className="bg-white rounded-2xl p-6" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-              {renderDeadlines()}
+      {/* Main content area */}
+      <div className="flex-1 flex overflow-hidden mt-3">
+        {/* Left: Calendar panel — collapsible */}
+        {!calendarCollapsed ? (
+          <div className="w-[300px] bg-white border-r border-gray-100 p-5 flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-black text-gray-900 tracking-tight">daily log</span>
+              <div className="flex items-center gap-0.5">
+                {renderNavButtons()}
+                <button
+                  onClick={() => setCalendarCollapsed(true)}
+                  title="캘린더 접기"
+                  className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors ml-1"
+                >
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              </div>
             </div>
-          )}
-
-          <div className="bg-white rounded-2xl p-6" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">메모</p>
-            <textarea
-              value={memo}
-              onChange={(e) => handleMemoChange(e.target.value)}
-              placeholder="오늘의 메모를 자유롭게 작성하세요..."
-              rows={8}
-              className="w-full resize-none text-sm text-gray-700 bg-transparent focus:outline-none placeholder-gray-300 leading-relaxed"
-            />
+            {renderCalendar()}
+            <div className="flex flex-col gap-1.5 pt-1">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="text-[11px] text-gray-400">할 일 있음</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-400" />
+                  <span className="text-[11px] text-gray-400">마감일</span>
+                </div>
+              </div>
+              {draggingTask && (
+                <div className="flex items-center gap-1.5 bg-blue-50 rounded-lg px-2.5 py-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-400" />
+                  <span className="text-[11px] text-blue-600 font-semibold">날짜 위에 드롭하여 추가</span>
+                </div>
+              )}
+            </div>
           </div>
+        ) : (
+          /* Collapsed: thin strip with expand button */
+          <div className="w-9 bg-white border-r border-gray-100 flex-shrink-0 flex flex-col items-center pt-3">
+            <button
+              onClick={() => setCalendarCollapsed(false)}
+              title="캘린더 펼치기"
+              className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Content area: two-column layout — fills all remaining space */}
+        <div className="flex-1 flex overflow-hidden p-5 gap-5">
+
+          {/* Center column: date header + timetable + todo list + deadlines */}
+          <div className="flex-1 flex flex-col gap-4 overflow-y-auto min-w-0 pb-5 pr-1">
+            <h2 className="text-xl font-black text-gray-900 tracking-tight flex-shrink-0">{selectedDateLabel}</h2>
+
+            {timetable.length > 0 && (() => { const c = timetable.filter(cls => cls.day?.split(',').map(d=>d.trim()).includes(DOW_KO[new Date(selectedDate+'T00:00:00').getDay()])); return c.length > 0; })() && (
+              <div className="bg-white rounded-2xl p-5 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+                {renderTimeline()}
+              </div>
+            )}
+
+            <div className="bg-white rounded-2xl p-5 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+              {renderTodoList()}
+            </div>
+
+            {selectedDeadlines.length > 0 && (
+              <div className="bg-white rounded-2xl p-5 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+                {renderDeadlines()}
+              </div>
+            )}
+          </div>
+
+          {/* Right column: Tasks (top) + Links + Memo (fills remaining height) */}
+          <div className="w-[360px] flex-shrink-0 flex flex-col pb-5 gap-4 min-h-0">
+            {/* Tasks panel at top */}
+            {tasks.filter(t => !t.done).length > 0 && (
+              <div className="bg-white rounded-2xl p-4 flex-shrink-0" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+                {renderTasksPanel()}
+              </div>
+            )}
+
+            {/* Links section */}
+            {renderDailyLinks()}
+
+            {/* Memo — fills all remaining vertical space */}
+            <div
+              className="bg-white rounded-2xl p-5 flex flex-col flex-1 min-h-0"
+              style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}
+            >
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex-shrink-0">메모</p>
+              <textarea
+                value={memo}
+                onChange={(e) => handleMemoChange(e.target.value)}
+                placeholder="오늘의 메모를 자유롭게 작성하세요..."
+                className="flex-1 w-full resize-none text-sm text-gray-700 bg-transparent focus:outline-none placeholder-gray-300 leading-relaxed min-h-0"
+              />
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

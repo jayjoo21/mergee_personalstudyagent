@@ -17,6 +17,8 @@ import CounselingPage from './components/CounselingPage';
 import TasksPage from './components/TasksPage';
 import DailyLogCalendar from './components/DailyLogCalendar';
 import MyPage from './components/MyPage';
+import HabitTracker from './components/HabitTracker';
+import CampusLife from './components/CampusLife';
 import { storage, KEYS, pullFromSupabase, setAuthUserId, enableDemoMode, disableDemoMode } from './utils/storage';
 import { buildDemoStore } from './utils/demoData';
 import { supabase, hasSupabase } from './utils/supabase';
@@ -96,6 +98,9 @@ export default function App() {
   const [counselingLogs, setCounselingLogs] = useState(() => storage.get(KEYS.COUNSELING_LOGS, []));
   const [tasks, setTasks] = useState(() => storage.get(KEYS.TASKS, []));
   const [tags, setTags] = useState(() => storage.get(KEYS.TAGS, []));
+  const [habits, setHabits] = useState(() => storage.get(KEYS.HABITS, []));
+  const [timetable, setTimetable] = useState(() => storage.get(KEYS.TIMETABLE, []));
+  const [habitLogs, setHabitLogs] = useState(() => storage.get(KEYS.HABIT_LOGS, {}));
 
   /* ─── Supabase Auth init ─── */
   useEffect(() => {
@@ -185,6 +190,9 @@ export default function App() {
   useEffect(() => { storage.set(KEYS.COUNSELING_LOGS, counselingLogs); }, [counselingLogs]);
   useEffect(() => { storage.set(KEYS.TASKS, tasks); }, [tasks]);
   useEffect(() => { storage.set(KEYS.TAGS, tags); }, [tags]);
+  useEffect(() => { storage.set(KEYS.HABITS, habits); }, [habits]);
+  useEffect(() => { storage.set(KEYS.TIMETABLE, timetable); }, [timetable]);
+  useEffect(() => { storage.set(KEYS.HABIT_LOGS, habitLogs); }, [habitLogs]);
 
   /* ─── Study activity tracker ─── */
   const recordActivity = useCallback(() => {
@@ -524,6 +532,7 @@ export default function App() {
           user={user}
           onLogout={handleLogout}
           isDemo={isDemo}
+          onNavigateMyPage={() => setCurrentView('my-page')}
         />
         {currentView === 'dashboard' && (
           <Dashboard
@@ -541,6 +550,9 @@ export default function App() {
             counselingLogs={counselingLogs}
             tasks={tasks}
             onToggleTask={handleToggleTask}
+            habitLogs={habitLogs}
+            habits={habits}
+            onNavigate={setCurrentView}
           />
         )}
         {currentView === 'chat' && (
@@ -556,7 +568,7 @@ export default function App() {
           />
         )}
         {currentView === 'daily-log' && (
-          <DailyLogCalendar tasks={tasks} stacks={stacks} />
+          <DailyLogCalendar tasks={tasks} stacks={stacks} timetable={timetable} onRecordActivity={recordActivity} />
         )}
         {currentView === 'wrong-notes' && (
           <WrongNotes
@@ -621,6 +633,25 @@ export default function App() {
         )}
         {currentView === 'weak-sniper' && (
           <WeakPointSniper wrongNotes={wrongNotes} stacks={stacks} apiKey={apiKey} />
+        )}
+        {currentView === 'habit-tracker' && (
+          <HabitTracker
+            habits={habits}
+            habitLogs={habitLogs}
+            onHabitsChange={setHabits}
+            onHabitLogsChange={setHabitLogs}
+            onRecordActivity={recordActivity}
+            onNavigateCampusLife={() => setCurrentView('campus-life')}
+          />
+        )}
+        {currentView === 'campus-life' && (
+          <CampusLife
+            apiKey={apiKey}
+            timetable={timetable}
+            habits={habits}
+            onTimetableChange={setTimetable}
+            onHabitsChange={setHabits}
+          />
         )}
         {currentView === 'merge-report' && (
           <MergeReport

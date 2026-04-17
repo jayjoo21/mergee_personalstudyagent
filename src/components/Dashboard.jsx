@@ -313,7 +313,7 @@ function TaskCard({ task, onToggle }) {
 /* ─────────────────────────────────────────
    STUDY HEATMAP
 ───────────────────────────────────────────*/
-function StudyHeatmap({ studyActivity }) {
+function StudyHeatmap({ studyActivity, habitLogs = {} }) {
   const WEEKS = 26;
   const CELL_W = 14;
   const GAP = 3;
@@ -327,7 +327,9 @@ function StudyHeatmap({ studyActivity }) {
     const d = new Date(today);
     d.setDate(today.getDate() - (total - 1 - i));
     const key = d.toISOString().split('T')[0];
-    return { key, date: new Date(d), count: studyActivity[key] || 0 };
+    const habitDone = Object.values(habitLogs[key] || {}).some(Boolean);
+    const studyCount = studyActivity[key] || 0;
+    return { key, date: new Date(d), count: studyCount + (habitDone ? 3 : 0), hasHabit: habitDone };
   });
 
   const startDow = allDays[0].date.getDay();
@@ -348,8 +350,7 @@ function StudyHeatmap({ studyActivity }) {
   });
 
   const thisYear = today.getFullYear().toString();
-  const yearActiveDays = Object.entries(studyActivity)
-    .filter(([k, v]) => k.startsWith(thisYear) && v > 0).length;
+  const yearActiveDays = allDays.filter(d => d.key.startsWith(thisYear) && d.count > 0).length;
 
   const cellColor = (n) => {
     if (!n) return 'rgba(0,0,0,0.05)';
@@ -459,6 +460,9 @@ export default function Dashboard({
   counselingLogs,
   tasks = [],
   onToggleTask,
+  habitLogs = {},
+  habits = [],
+  onNavigate,
 }) {
   const activeStacks = stacks.filter((s) => !s.passed);
   const passedStacks = stacks.filter((s) => s.passed);
@@ -474,7 +478,18 @@ export default function Dashboard({
     return da - db;
   });
 
+  // Floating habit bar data
+  const todayKey = new Date().toISOString().split('T')[0];
+  const todayDow = new Date().getDay();
+  const DOW_KO = ['일','월','화','수','목','금','토'];
+  const todayHabits = habits.filter(h => {
+    if (!h.days || h.days.length === 0) return true;
+    return h.days.includes(DOW_KO[todayDow]);
+  });
+  const todayDoneCount = todayHabits.filter(h => habitLogs[todayKey]?.[h.id]).length;
+
   return (
+    <div className="flex-1 relative overflow-hidden flex flex-col">
     <div
       className="flex-1 overflow-y-auto"
       style={{ background: '#f8f8f6', padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: '32px' }}
@@ -547,7 +562,7 @@ export default function Dashboard({
         className="rounded-2xl p-6"
         style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.06)' }}
       >
-        <StudyHeatmap studyActivity={studyActivity} />
+        <StudyHeatmap studyActivity={studyActivity} habitLogs={habitLogs} />
       </div>
 
       {/* ── PASSED ── */}
@@ -569,6 +584,39 @@ export default function Dashboard({
               </span>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+
+      {/* ── Floating Habit Bar ── */}
+      {todayHabits.length > 0 && (
+        <div className="absolute bottom-5 right-5 z-20 pointer-events-auto">
+          <button
+            onClick={() => onNavigate?.('habit-tracker')}
+            className="flex items-center gap-3 bg-white rounded-2xl shadow-lg border border-gray-100 px-4 py-3 hover:shadow-xl transition-all hover:-translate-y-0.5 group"
+          >
+            <div className="flex flex-col items-start">
+              <span className="text-[10px] text-gray-400 font-medium">오늘의 습관</span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-sm font-black text-gray-900">{todayDoneCount}/{todayHabits.length}</span>
+                <span className="text-xs text-gray-400">완료</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              {todayHabits.slice(0,4).map(h => (
+                <div key={h.id} className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: habitLogs[todayKey]?.[h.id] ? h.color : '#e5e7eb' }}
+                  />
+                  <span className="text-[10px] text-gray-500 max-w-[80px] truncate">{h.name}</span>
+                </div>
+              ))}
+              {todayHabits.length > 4 && <span className="text-[9px] text-gray-300 ml-3.5">+{todayHabits.length-4}개 더</span>}
+            </div>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="text-gray-300 group-hover:text-gray-600 transition-colors ml-1">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
         </div>
       )}
     </div>

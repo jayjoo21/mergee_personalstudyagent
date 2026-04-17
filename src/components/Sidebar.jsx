@@ -291,24 +291,15 @@ export default function Sidebar({
         </div>
 
         {/* Bottom bar */}
-        <div className="px-3 pt-2 pb-4 border-t border-gray-100 flex items-center gap-2 flex-shrink-0 bg-white">
+        <div className="px-3 pt-2 pb-4 border-t border-gray-100 flex-shrink-0 bg-white">
           <button
             onClick={() => setShowAddChoice(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111] hover:bg-gray-800 text-white text-sm font-semibold rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#111] hover:bg-gray-800 text-white text-sm font-semibold rounded-xl transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             add stack &amp; tasks
-          </button>
-          <button
-            onClick={() => onNavigate('my-page')}
-            title="my page"
-            className={`w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-colors ${currentView === 'my-page' ? 'text-gray-900 bg-gray-100' : 'text-gray-400 hover:text-gray-700'}`}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
           </button>
         </div>
       </aside>

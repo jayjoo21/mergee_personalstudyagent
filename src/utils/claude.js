@@ -602,3 +602,52 @@ export const getContextContinueQuestion = async (apiKey, stackName, lastMessages
   const recent = lastMessages.slice(-4).map(m => m.role+': '+m.content.slice(0,100)).join('\n');
   return callClaude(apiKey, [{ role: 'user', content: `[${stackName}] 최근 대화:\n${recent}\n\n이어서 할 질문 1개 (30자 이내, 자연스럽게 연결)` }], '학습 튜터. 이전 내용과 자연스럽게 연결되는 질문을 한국어로.', 'claude-haiku-4-5-20251001');
 };
+
+/* ─── Timetable image parsing via Claude Vision ─── */
+const TIMETABLE_COLORS = ['#6366f1','#10b981','#f59e0b','#f43f5e','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
+
+export const parseTimetableFromImage = async (apiKey, base64Image, mediaType = 'image/png') => {
+  if (IS_DEMO(apiKey)) {
+    await delay(1200);
+    return [
+      { id: String(Date.now()),   subject: '문화이론과 대중문화', day: '월,수', time: '10:00-11:30', room: '5남 532',    color: '#6366f1' },
+      { id: String(Date.now()+1), subject: '마케팅원론',          day: '화,목', time: '13:00-14:30', room: '경영관 301', color: '#10b981' },
+      { id: String(Date.now()+2), subject: '데이터분석입문',      day: '수',    time: '15:00-16:30', room: 'IT관 201',   color: '#f59e0b' },
+      { id: String(Date.now()+3), subject: '영어커뮤니케이션',    day: '금',    time: '09:00-10:30', room: '어학관 105', color: '#f43f5e' },
+    ];
+  }
+
+  const res = await fetch(BASE, {
+    method: 'POST',
+    headers: headers(apiKey),
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Image } },
+          { type: 'text', text: `이 이미지는 대학교 시간표(에브리타임 등)입니다. 모든 강의 정보를 추출해서 JSON 배열만 반환하세요. 마크다운이나 설명 없이 순수 JSON만요.\n\n형식:\n[\n  {\n    "subject": "과목명",\n    "day": "요일들(쉼표 구분, 예: 월,수 또는 화,목,토)",\n    "time": "시작시간-종료시간 (예: 10:00-11:30)",\n    "room": "강의실 (없으면 빈 문자열)",\n    "color": "이미지의 블록 색상을 hex로 (없으면 ${TIMETABLE_COLORS.slice(0,6).join(',')} 중 하나)"\n  }\n]` }
+        ]
+      }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `API error ${res.status}`);
+  }
+  const data = await res.json();
+  const text = data.content?.[0]?.text || '[]';
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) throw new Error('시간표 JSON을 파싱할 수 없습니다');
+  const parsed = JSON.parse(match[0]);
+  return parsed.map((item, i) => ({
+    subject: item.subject || '알 수 없는 과목',
+    day: item.day || '',
+    time: item.time || '',
+    room: item.room || '',
+    color: item.color || TIMETABLE_COLORS[i % TIMETABLE_COLORS.length],
+    id: String(Date.now() + i),
+  }));
+};
