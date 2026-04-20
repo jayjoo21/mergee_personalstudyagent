@@ -47,7 +47,7 @@ function CoverLetter({ apiKey, onSave, resumeMaterials }) {
       {/* Input form */}
       <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">지원 정보</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-500 font-medium block mb-1">회사명 *</label>
             <input type="text" value={form.company} onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
@@ -138,7 +138,7 @@ function InterviewCoach({ apiKey, onSave }) {
     <div className="space-y-4">
       <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">면접 준비</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-500 font-medium block mb-1">회사명 *</label>
             <input type="text" value={form.company} onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
@@ -218,12 +218,12 @@ export default function Career({ apiKey, resumeMaterials = [], onSaveResumeMater
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#f8f9fa]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-4 flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-4 py-3 md:px-6 md:py-4 flex-shrink-0">
         <h2 className="text-2xl font-black text-gray-900 tracking-tight">career</h2>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-100 px-6 flex gap-1 flex-shrink-0 overflow-x-auto">
+      <div className="bg-white border-b border-gray-100 px-4 md:px-6 flex gap-1 flex-shrink-0 overflow-x-auto">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`py-2.5 px-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${tab === t.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-700'}`}>
@@ -236,7 +236,7 @@ export default function Career({ apiKey, resumeMaterials = [], onSaveResumeMater
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {tab === 'cover' && <CoverLetter apiKey={apiKey} onSave={saveMaterial} resumeMaterials={resumeMaterials} />}
         {tab === 'interview' && <InterviewCoach apiKey={apiKey} onSave={saveMaterial} />}
         {tab === 'materials' && <MaterialsBank materials={materials} onDelete={deleteMaterial} />}

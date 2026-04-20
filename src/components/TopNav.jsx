@@ -49,7 +49,7 @@ function LinkBadge({ url }) {
   }
 }
 
-export default function TopNav({ currentView, onNavigate, onOpenSettings, user, onLogout, isDemo, onNavigateMyPage }) {
+export default function TopNav({ currentView, onNavigate, onOpenSettings, user, onLogout, isDemo, onNavigateMyPage, onSidebarOpen }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -114,7 +114,20 @@ export default function TopNav({ currentView, onNavigate, onOpenSettings, user, 
   const isToolView = ['stack-clash', 'weak-sniper', 'merge-report', 'habit-tracker', 'campus-life'].includes(currentView);
 
   return (
-    <div className="h-10 bg-white border-b border-gray-100 flex items-center justify-end px-5 flex-shrink-0 relative z-10">
+    <div className="h-10 bg-white border-b border-gray-100 flex items-center px-3 md:px-5 flex-shrink-0 relative z-10">
+      {/* Hamburger — mobile only */}
+      <button
+        onClick={onSidebarOpen}
+        className="md:hidden w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors mr-1 flex-shrink-0"
+        aria-label="메뉴 열기"
+      >
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      <div className="flex-1" />
+
       {/* Right: tools | links | settings */}
       <div className="flex items-center gap-1">
         {/* Tools dropdown */}

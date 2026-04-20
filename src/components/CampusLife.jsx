@@ -61,11 +61,15 @@ function QuickAddModal({ day, startSlot, endSlot, onSave, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-50 flex flex-col justify-end md:justify-center md:items-center md:p-4"
+      style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)' }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-80 overflow-hidden">
+      {/* Bottom sheet handle — mobile only */}
+      <div className="md:hidden flex justify-center pb-2 pt-1 bg-white rounded-t-3xl w-full">
+        <div className="w-10 h-1 bg-gray-300 rounded-full" />
+      </div>
+      <div className="bg-white md:rounded-2xl shadow-2xl w-full md:w-80 overflow-hidden rounded-b-none">
         {/* Header */}
         <div className="px-5 pt-5 pb-4 border-b border-gray-50">
           <div className="flex items-center justify-between">

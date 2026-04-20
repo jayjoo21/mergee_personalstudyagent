@@ -491,8 +491,8 @@ export default function Dashboard({
   return (
     <div className="flex-1 relative overflow-hidden flex flex-col">
     <div
-      className="flex-1 overflow-y-auto"
-      style={{ background: '#f8f8f6', padding: '32px 36px', display: 'flex', flexDirection: 'column', gap: '32px' }}
+      className="flex-1 overflow-y-auto flex flex-col gap-6 md:gap-8 px-4 py-6 md:px-9 md:py-8"
+      style={{ background: '#f8f8f6' }}
     >
       {/* ── Greeting ── */}
       <div>
@@ -503,9 +503,9 @@ export default function Dashboard({
       </div>
 
       {/* ── TOP 2-COL: Daily Log (65%) + Right panel (35%) ── */}
-      <div className="flex gap-5 items-stretch" style={{ minHeight: '520px' }}>
+      <div className="flex flex-col md:flex-row gap-5 md:items-stretch" style={{ minHeight: undefined }}>
         {/* Left 65%: Daily Log */}
-        <div className="min-w-0" style={{ flex: '65' }}>
+        <div className="min-w-0 md:min-h-[520px]" style={{ flex: '65' }}>
           <DailyLogCalendar tasks={tasks} stacks={stacks} compact />
         </div>
 

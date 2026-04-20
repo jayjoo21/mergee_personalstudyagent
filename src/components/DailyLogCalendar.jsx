@@ -78,8 +78,9 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = 
   const [draggingTask, setDraggingTask] = useState(null);
   const [dropTargetDate, setDropTargetDate] = useState(null);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
-  const [calendarCollapsed, setCalendarCollapsed] = useState(false);
-  const [tasksCollapsed, setTasksCollapsed] = useState(false);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const [calendarCollapsed, setCalendarCollapsed] = useState(isMobile);
+  const [tasksCollapsed, setTasksCollapsed] = useState(isMobile);
   const [noticeText, setNoticeText] = useState(() => storage.get('mergee_daily_notice', ''));
   const [noticeEditing, setNoticeEditing] = useState(false);
   const [dailyLinks, setDailyLinks] = useState(() => storage.get('mergee_daily_links', []));
@@ -819,13 +820,13 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = 
       )}
 
       {/* Main content: notice + upper split + memo */}
-      <div className="flex-1 flex flex-col overflow-hidden p-4 gap-3 min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden p-3 md:p-4 gap-2 md:gap-3 min-w-0">
 
         {/* 공통 공지 */}
         {renderNotice()}
 
-        {/* Upper: Tasks 가져오기 + 관련 링크 side by side */}
-        <div className="flex gap-3 flex-shrink-0">
+        {/* Upper: Tasks 가져오기 + 관련 링크 — side by side on desktop, stacked on mobile */}
+        <div className="flex flex-col md:flex-row gap-2 md:gap-3 flex-shrink-0">
           {/* Tasks 가져오기 */}
           <div
             className="flex-1 bg-white rounded-2xl p-4 min-w-0 overflow-hidden"

@@ -251,6 +251,7 @@ export default function CounselingLog({ logs, resumeMaterials, apiKey, onSave, o
   const [selectedId, setSelectedId] = useState(null);
   const [editedContent, setEditedContent] = useState('');
   const [contentModified, setContentModified] = useState(false);
+  const [mobileTab, setMobileTab] = useState('memo'); // 'memo' | 'analysis'
 
   const selectedLog = logs.find(l => l.id === selectedId) || null;
 
@@ -300,10 +301,10 @@ export default function CounselingLog({ logs, resumeMaterials, apiKey, onSave, o
   /* ── Detail (split) view ── */
   if (selectedLog) {
     return (
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
 
-        {/* Sidebar: log list */}
-        <div className="w-64 flex-shrink-0 bg-white border-r border-gray-100 flex flex-col overflow-hidden">
+        {/* Sidebar: log list — hidden on mobile */}
+        <div className="hidden md:flex w-64 flex-shrink-0 bg-white border-r border-gray-100 flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <button
               onClick={() => setSelectedId(null)}
@@ -342,44 +343,83 @@ export default function CounselingLog({ logs, resumeMaterials, apiKey, onSave, o
         </div>
 
         {/* Detail: Original Memo | AI Analysis */}
-        <div className="flex-1 flex overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-          {/* Left: Original Memo */}
-          <div className="flex-1 flex flex-col overflow-hidden min-w-0 border-r border-gray-100">
-            <div className="px-5 py-3 bg-white border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Original Memo</span>
-              {contentModified && (
-                <button
-                  onClick={handleSaveEdit}
-                  className="h-6 px-3 text-[10px] font-bold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  저장
-                </button>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto bg-white">
-              <textarea
-                value={editedContent}
-                onChange={(e) => handleContentEdit(e.target.value)}
-                className="w-full h-full min-h-full resize-none px-6 py-5 text-sm text-gray-700 leading-7 bg-transparent focus:outline-none placeholder-gray-300"
-                style={{ fontFamily: 'inherit' }}
-                placeholder="상담 메모를 입력하세요..."
-              />
+          {/* Mobile: back button + tab switcher */}
+          <div className="md:hidden flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-100 flex-shrink-0">
+            <button
+              onClick={() => setSelectedId(null)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors mr-2"
+            >
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              목록
+            </button>
+            <div className="flex-1 flex gap-1 bg-gray-100 rounded-xl p-0.5">
+              <button
+                onClick={() => setMobileTab('memo')}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  mobileTab === 'memo' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                }`}
+              >
+                원본 메모
+              </button>
+              <button
+                onClick={() => setMobileTab('analysis')}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  mobileTab === 'analysis' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                }`}
+              >
+                AI 분석
+              </button>
             </div>
           </div>
 
-          {/* Right: AI Analysis */}
-          <div className="flex-1 overflow-y-auto min-w-0" style={{ background: '#f8f8f6' }}>
-            <div className="px-5 py-3 bg-white border-b border-gray-100 sticky top-0 z-10">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AI Analysis</span>
+          {/* Desktop: side-by-side / Mobile: single panel based on tab */}
+          <div className="flex-1 flex overflow-hidden min-w-0">
+
+            {/* Left: Original Memo */}
+            <div className={`flex-1 flex flex-col overflow-hidden min-w-0 border-r border-gray-100 ${
+              mobileTab !== 'memo' ? 'hidden md:flex' : 'flex'
+            }`}>
+              <div className="px-4 md:px-5 py-3 bg-white border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Original Memo</span>
+                {contentModified && (
+                  <button
+                    onClick={handleSaveEdit}
+                    className="h-7 px-3 text-[10px] font-bold bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors min-w-[44px]"
+                  >
+                    저장
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 overflow-y-auto bg-white">
+                <textarea
+                  value={editedContent}
+                  onChange={(e) => handleContentEdit(e.target.value)}
+                  className="w-full h-full min-h-full resize-none px-4 md:px-6 py-5 text-sm text-gray-700 leading-7 bg-transparent focus:outline-none placeholder-gray-300"
+                  style={{ fontFamily: 'inherit' }}
+                  placeholder="상담 메모를 입력하세요..."
+                />
+              </div>
             </div>
-            <div className="p-5">
-              <AnalysisPanel
-                log={selectedLog}
-                resumeMaterials={resumeMaterials}
-                onDelete={() => handleDelete(selectedLog.id)}
-                onCopyPrep={() => copyPrep(selectedLog)}
-              />
+
+            {/* Right: AI Analysis */}
+            <div className={`flex-1 overflow-y-auto min-w-0 ${
+              mobileTab !== 'analysis' ? 'hidden md:block' : 'block'
+            }`} style={{ background: '#f8f8f6' }}>
+              <div className="px-4 md:px-5 py-3 bg-white border-b border-gray-100 sticky top-0 z-10">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AI Analysis</span>
+              </div>
+              <div className="p-4 md:p-5">
+                <AnalysisPanel
+                  log={selectedLog}
+                  resumeMaterials={resumeMaterials}
+                  onDelete={() => handleDelete(selectedLog.id)}
+                  onCopyPrep={() => copyPrep(selectedLog)}
+                />
+              </div>
             </div>
           </div>
         </div>

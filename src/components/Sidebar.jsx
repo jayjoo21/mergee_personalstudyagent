@@ -22,6 +22,8 @@ export default function Sidebar({
   onNavigateToTask,
   onConvertStackToTask,
   onConvertTaskToStack,
+  isOpen = false,
+  onClose,
 }) {
   const [stackCollapsed, setStackCollapsed] = useState(
     () => localStorage.getItem('mergee_stack_collapsed') === 'true'
@@ -67,7 +69,21 @@ export default function Sidebar({
 
   return (
     <>
-      <aside className="w-[260px] h-screen bg-white border-r border-gray-100 flex flex-col flex-shrink-0 select-none overflow-hidden">
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <aside className={`
+        fixed inset-y-0 left-0 z-40
+        md:relative md:inset-auto md:z-auto md:translate-x-0
+        w-[260px] h-screen bg-white border-r border-gray-100
+        flex flex-col flex-shrink-0 select-none overflow-hidden
+        transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         {/* Logo */}
         <div className="px-5 pt-6 pb-5 flex-shrink-0">
           <span

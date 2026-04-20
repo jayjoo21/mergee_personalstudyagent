@@ -178,6 +178,7 @@ export default function App() {
   const [mergedStack, setMergedStack] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   /* ─── Persist to localStorage ─── */
   useEffect(() => { storage.set(KEYS.STACKS, stacks); }, [stacks]);
@@ -506,8 +507,10 @@ export default function App() {
         stacks={stacks}
         currentView={currentView}
         selectedStackId={selectedStackId}
-        onNavigate={setCurrentView}
-        onSelectStack={handleSelectStack}
+        onNavigate={(v) => { setCurrentView(v); setSidebarOpen(false); }}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onSelectStack={(id) => { handleSelectStack(id); setSidebarOpen(false); }}
         onAddStack={() => { setEditingStack(null); setShowAddStack(true); }}
         onEditStack={(stack) => { setEditingStack(stack); setShowAddStack(false); }}
         onOpenSettings={() => setShowApiKey(true)}
@@ -534,6 +537,7 @@ export default function App() {
           onLogout={handleLogout}
           isDemo={isDemo}
           onNavigateMyPage={() => setCurrentView('my-page')}
+          onSidebarOpen={() => setSidebarOpen(true)}
         />
         {currentView === 'dashboard' && (
           <Dashboard

@@ -172,6 +172,7 @@ function JobFormModal({ job, onSave, onClose, apiKey }) {
 function CoverLetterPanel({ job, apiKey }) {
   const [questions, setQuestions] = useState(() => storage.get(coverKey(job.id), []));
   const [activeIdx, setActiveIdx] = useState(0);
+  const [mobileTab, setMobileTab] = useState('list'); // 'list' | 'write'
   const [coverFeedback, setCoverFeedback] = useState('');
   const [coverLoading, setCoverLoading] = useState(false);
 
@@ -432,10 +433,29 @@ function CoverLetterPanel({ job, apiKey }) {
   const saveStatusText = saveStatus === 'saving' ? '저장 중...' : saveStatus === 'saved' ? `자동저장 · ${timeAgoText}` : '자동저장';
 
   return (
-    <div className="flex h-full min-h-0 relative">
+    <div className="flex flex-col h-full min-h-0 relative">
 
+      {/* ── Mobile Tab Bar ── */}
+      <div className="md:hidden flex items-center gap-1 px-3 py-2 bg-white border-b border-gray-100 flex-shrink-0">
+        <div className="flex-1 flex gap-1 bg-gray-100 rounded-xl p-0.5">
+          <button
+            onClick={() => setMobileTab('list')}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${mobileTab === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+          >
+            문항 목록
+          </button>
+          <button
+            onClick={() => setMobileTab('write')}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${mobileTab === 'write' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+          >
+            작성하기
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-1 min-h-0 relative">
       {/* ── Left Sidebar (160px) ── */}
-      <div className="flex flex-col border-r border-gray-100 flex-shrink-0 bg-white" style={{ width: '160px' }}>
+      <div className={`flex-col border-r border-gray-100 flex-shrink-0 bg-white w-full md:w-[160px] ${mobileTab !== 'list' ? 'hidden md:flex' : 'flex'}`}>
         {/* Overall progress */}
         <div className="px-3 pt-3 pb-2 border-b border-gray-50 flex-shrink-0">
           <div className="flex items-center justify-between mb-1.5">
@@ -460,7 +480,7 @@ function CoverLetterPanel({ job, apiKey }) {
             return (
               <button
                 key={q.id}
-                onClick={() => setActiveIdx(idx)}
+                onClick={() => { setActiveIdx(idx); setMobileTab('write'); }}
                 className={`w-full text-left px-3 py-2 transition-colors flex flex-col gap-0.5 ${
                   isActive ? 'bg-indigo-50 border-r-2 border-indigo-500' : 'hover:bg-gray-50'
                 }`}
@@ -531,7 +551,7 @@ function CoverLetterPanel({ job, apiKey }) {
       </div>
 
       {/* ── Main Content ── */}
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className={`flex-col min-h-0 flex-1 ${mobileTab !== 'write' ? 'hidden md:flex' : 'flex'}`}>
         {!activeQ ? (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-300 p-8">
             <svg className="w-12 h-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
@@ -790,6 +810,7 @@ function CoverLetterPanel({ job, apiKey }) {
           </div>
         </div>
       )}
+      </div>{/* end inner flex row */}
     </div>
   );
 }
