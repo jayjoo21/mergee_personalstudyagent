@@ -573,7 +573,7 @@ export default function App() {
           />
         )}
         {currentView === 'daily-log' && (
-          <DailyLogCalendar tasks={tasks} stacks={stacks} timetable={timetable} onRecordActivity={recordActivity} />
+          <DailyLogCalendar tasks={tasks} stacks={stacks} timetable={timetable} onRecordActivity={recordActivity} onNavigateToTask={handleNavigateToTask} />
         )}
         {currentView === 'wrong-notes' && (
           <WrongNotes

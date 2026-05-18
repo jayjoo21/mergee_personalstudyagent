@@ -37,21 +37,43 @@ function parseTimeRange(timeStr) {
   return { startSlot, endSlot };
 }
 
+/* ── Day multi-select shared component ── */
+function DaySelector({ selected, onChange }) {
+  const toggle = (d) => onChange(
+    selected.includes(d) ? selected.filter(x => x !== d) : [...selected, d]
+  );
+  return (
+    <div className="flex gap-1 flex-wrap">
+      {['월','화','수','목','금','토'].map(d => (
+        <button
+          key={d}
+          type="button"
+          onClick={() => toggle(d)}
+          className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${
+            selected.includes(d) ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+          } ${d === '토' ? (selected.includes(d) ? '' : '!text-blue-400') : ''}`}
+        >{d}</button>
+      ))}
+    </div>
+  );
+}
+
 /* ── Quick-add modal (appears after drag) ── */
 function QuickAddModal({ day, startSlot, endSlot, onSave, onClose }) {
-  const [subject, setSubject] = useState('');
-  const [room,    setRoom]    = useState('');
-  const [memo,    setMemo]    = useState('');
-  const [color,   setColor]   = useState(PALETTE[0]);
-  const [sTime,   setSTime]   = useState(slotToTime(startSlot));
-  const [eTime,   setETime]   = useState(slotToTime(endSlot));
+  const [subject,      setSubject]      = useState('');
+  const [room,         setRoom]         = useState('');
+  const [memo,         setMemo]         = useState('');
+  const [color,        setColor]        = useState(PALETTE[0]);
+  const [sTime,        setSTime]        = useState(slotToTime(startSlot));
+  const [eTime,        setETime]        = useState(slotToTime(endSlot));
+  const [selectedDays, setSelectedDays] = useState([day]);
 
   const handleSave = () => {
-    if (!subject.trim()) return;
+    if (!subject.trim() || selectedDays.length === 0) return;
     onSave({
       id: String(Date.now()),
       subject: subject.trim(),
-      day,
+      day: selectedDays.join(','),
       time: `${sTime}-${eTime}`,
       room: room.trim(),
       memo: memo.trim(),
@@ -75,9 +97,7 @@ function QuickAddModal({ day, startSlot, endSlot, onSave, onClose }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">강의 추가</p>
-              <p className="text-sm font-bold text-indigo-600">
-                {day}요일 · {sTime} ~ {eTime}
-              </p>
+              <p className="text-sm font-bold text-indigo-600">{sTime} ~ {eTime}</p>
             </div>
             <button
               onClick={onClose}
@@ -98,6 +118,11 @@ function QuickAddModal({ day, startSlot, endSlot, onSave, onClose }) {
               placeholder="예: 운영체제"
               className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all"
             />
+          </div>
+
+          <div>
+            <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">요일 (다중 선택)</label>
+            <DaySelector selected={selectedDays} onChange={setSelectedDays} />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -162,7 +187,7 @@ function QuickAddModal({ day, startSlot, endSlot, onSave, onClose }) {
         <div className="px-5 pb-5 flex gap-2">
           <button
             onClick={handleSave}
-            disabled={!subject.trim()}
+            disabled={!subject.trim() || selectedDays.length === 0}
             className="flex-1 py-2.5 text-sm font-semibold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 transition-colors"
           >
             추가하기
@@ -173,6 +198,107 @@ function QuickAddModal({ day, startSlot, endSlot, onSave, onClose }) {
           >
             취소
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Edit class modal ── */
+function EditClassModal({ cls, onSave, onClose, onDelete }) {
+  const [subject,      setSubject]      = useState(cls.subject || '');
+  const [selectedDays, setSelectedDays] = useState(
+    (cls.day || '').split(',').map(d => d.trim()).filter(Boolean)
+  );
+  const [time,  setTime]  = useState(cls.time || '');
+  const [room,  setRoom]  = useState(cls.room || '');
+  const [memo,  setMemo]  = useState(cls.memo || '');
+  const [color, setColor] = useState(cls.color || PALETTE[0]);
+
+  const handleSave = () => {
+    if (!subject.trim() || selectedDays.length === 0) return;
+    onSave({ ...cls, subject: subject.trim(), day: selectedDays.join(','), time, room: room.trim(), memo: memo.trim(), color });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-center justify-between">
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">강의 수정</p>
+            <p className="text-sm font-bold text-gray-800">{cls.subject}</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-lg">×</button>
+        </div>
+
+        <div className="px-5 py-4 space-y-3">
+          <div>
+            <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">과목명 *</label>
+            <input
+              autoFocus
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">요일 (다중 선택)</label>
+            <DaySelector selected={selectedDays} onChange={setSelectedDays} />
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">시간</label>
+            <input
+              value={time}
+              onChange={e => setTime(e.target.value)}
+              placeholder="예: 10:00-11:30"
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200 font-mono"
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">강의실</label>
+            <input
+              value={room}
+              onChange={e => setRoom(e.target.value)}
+              placeholder="예: 공학관 401"
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">메모</label>
+            <input
+              value={memo}
+              onChange={e => setMemo(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">색상</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {PALETTE.map(c => (
+                <button key={c} onClick={() => setColor(c)}
+                  className="w-5 h-5 rounded-full transition-transform hover:scale-110"
+                  style={{ backgroundColor: c, outline: color === c ? `2.5px solid ${c}` : 'none', outlineOffset: '2px' }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 flex gap-2">
+          <button
+            onClick={handleSave}
+            disabled={!subject.trim() || selectedDays.length === 0}
+            className="flex-1 py-2.5 text-sm font-semibold bg-gray-900 text-white rounded-xl hover:bg-gray-700 disabled:opacity-40 transition-colors"
+          >저장</button>
+          <button
+            onClick={() => { if (window.confirm('강의를 삭제할까요?')) onDelete(cls.id); }}
+            className="px-4 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-50 rounded-xl transition-colors"
+          >삭제</button>
+          <button onClick={onClose} className="px-4 py-2.5 text-sm text-gray-400 hover:bg-gray-100 rounded-xl transition-colors">취소</button>
         </div>
       </div>
     </div>
@@ -484,7 +610,11 @@ export default function CampusLife({ apiKey, timetable: propTimetable, habits: p
 
   /* Manual add form */
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newCls, setNewCls] = useState({ subject: '', day: '', time: '', room: '', color: PALETTE[0] });
+  const [newCls, setNewCls] = useState({ subject: '', days: [], time: '', room: '', color: PALETTE[0] });
+
+  /* Class list accordion + edit */
+  const [classListOpen, setClassListOpen] = useState(true);
+  const [editingClass,  setEditingClass]  = useState(null);
 
   /* ── File upload ── */
   const handleFile = (e) => {
@@ -549,15 +679,21 @@ export default function CampusLife({ apiKey, timetable: propTimetable, habits: p
 
   /* ── Manual class add ── */
   const addManualClass = () => {
-    if (!newCls.subject.trim()) return;
-    const cls = { ...newCls, id: String(Date.now()) };
+    if (!newCls.subject.trim() || newCls.days.length === 0) return;
+    const cls = { ...newCls, id: String(Date.now()), day: newCls.days.join(',') };
     setTimetable([...timetable, cls]);
-    setNewCls({ subject: '', day: '', time: '', room: '', color: PALETTE[0] });
+    setNewCls({ subject: '', days: [], time: '', room: '', color: PALETTE[0] });
     setShowAddForm(false);
   };
 
   const deleteClass = (id) => {
     setTimetable(timetable.filter(c => c.id !== id));
+    if (editingClass?.id === id) setEditingClass(null);
+  };
+
+  const updateClass = (updated) => {
+    setTimetable(timetable.map(c => c.id === updated.id ? updated : c));
+    setEditingClass(null);
   };
 
   const clearTimetable = () => {
@@ -619,7 +755,7 @@ export default function CampusLife({ apiKey, timetable: propTimetable, habits: p
 
       {/* ── Main content ── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-6 flex flex-col gap-6 max-w-5xl mx-auto w-full">
+        <div className="p-4 flex flex-col gap-5 w-full">
 
           {/* ── Manual add form ── */}
           {showAddForm && (
@@ -637,26 +773,6 @@ export default function CampusLife({ apiKey, timetable: propTimetable, habits: p
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-gray-400 font-semibold mb-1 uppercase tracking-wider">요일</label>
-                  <div className="flex gap-1 mt-1">
-                    {['월','화','수','목','금','토'].map(d => (
-                      <button
-                        key={d}
-                        onClick={() => {
-                          const days = newCls.day.split(',').map(x => x.trim()).filter(Boolean);
-                          const next = days.includes(d) ? days.filter(x => x !== d) : [...days, d];
-                          setNewCls(p => ({ ...p, day: next.join(',') }));
-                        }}
-                        className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${
-                          newCls.day.split(',').map(x => x.trim()).includes(d)
-                            ? 'bg-gray-900 text-white'
-                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                        } ${d === '토' ? '!text-blue-400' : ''}`}
-                      >{d}</button>
-                    ))}
-                  </div>
-                </div>
-                <div>
                   <label className="block text-[10px] text-gray-400 font-semibold mb-1 uppercase tracking-wider">시간</label>
                   <input
                     value={newCls.time}
@@ -664,6 +780,10 @@ export default function CampusLife({ apiKey, timetable: propTimetable, habits: p
                     placeholder="예: 10:30-12:00"
                     className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
                   />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] text-gray-400 font-semibold mb-2 uppercase tracking-wider">요일 (다중 선택)</label>
+                  <DaySelector selected={newCls.days} onChange={days => setNewCls(p => ({ ...p, days }))} />
                 </div>
                 <div>
                   <label className="block text-[10px] text-gray-400 font-semibold mb-1 uppercase tracking-wider">강의실</label>
@@ -687,7 +807,7 @@ export default function CampusLife({ apiKey, timetable: propTimetable, habits: p
                 <div className="flex-1" />
                 <button
                   onClick={addManualClass}
-                  disabled={!newCls.subject.trim()}
+                  disabled={!newCls.subject.trim() || newCls.days.length === 0}
                   className="px-5 py-2 text-xs font-semibold bg-gray-900 text-white rounded-xl hover:bg-gray-700 disabled:opacity-40 transition-colors"
                 >
                   추가
@@ -797,41 +917,65 @@ export default function CampusLife({ apiKey, timetable: propTimetable, habits: p
             onDeleteClass={deleteClass}
           />
 
-          {/* ── Class list ── */}
+          {/* ── Class list (accordion) ── */}
           {timetable.length > 0 && (
-            <div className="bg-white rounded-2xl p-5" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">전체 강의 목록 ({timetable.length}개)</p>
-              </div>
-              <div className="flex flex-col gap-2">
-                {timetable.map(cls => (
-                  <div key={cls.id} className="group flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-                    <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cls.color }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{cls.subject}</p>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        {cls.day  && <span className="text-[11px] text-gray-500">{cls.day.split(',').map(d => d.trim()).join(' · ')}</span>}
-                        {cls.time && <span className="text-[11px] text-gray-400">{cls.time}</span>}
-                        {cls.room && <span className="text-[11px] text-gray-400">📍{cls.room}</span>}
-                        {cls.memo && <span className="text-[11px] text-gray-300 truncate">{cls.memo}</span>}
-                      </div>
-                    </div>
+            <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+              <button
+                onClick={() => setClassListOpen(v => !v)}
+                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
+              >
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  전체 강의 목록 ({timetable.length}개)
+                </p>
+                <svg
+                  width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                  className={`text-gray-300 transition-transform duration-200 ${classListOpen ? 'rotate-180' : ''}`}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {classListOpen && (
+                <div className="flex flex-col gap-1 px-3 pb-3">
+                  {timetable.map(cls => (
                     <button
-                      onClick={() => deleteClass(cls.id)}
-                      className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400 transition-all flex-shrink-0 rounded-lg"
+                      key={cls.id}
+                      onClick={() => setEditingClass(cls)}
+                      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors text-left w-full"
                     >
-                      <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cls.color }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{cls.subject}</p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          {cls.day  && <span className="text-[11px] text-gray-500">{cls.day.split(',').map(d => d.trim()).join(' · ')}</span>}
+                          {cls.time && <span className="text-[11px] text-gray-400">{cls.time}</span>}
+                          {cls.room && <span className="text-[11px] text-gray-400">📍{cls.room}</span>}
+                        </div>
+                      </div>
+                      <svg
+                        width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                        className="text-gray-200 group-hover:text-gray-400 flex-shrink-0 transition-colors"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
         </div>
       </div>
+
+      {/* ── Edit class modal ── */}
+      {editingClass && (
+        <EditClassModal
+          cls={editingClass}
+          onSave={updateClass}
+          onDelete={(id) => { deleteClass(id); setEditingClass(null); }}
+          onClose={() => setEditingClass(null)}
+        />
+      )}
     </div>
   );
 }

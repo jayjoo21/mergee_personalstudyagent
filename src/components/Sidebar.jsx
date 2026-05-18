@@ -28,6 +28,7 @@ export default function Sidebar({
   const [stackCollapsed, setStackCollapsed] = useState(
     () => localStorage.getItem('mergee_stack_collapsed') === 'true'
   );
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [unmergeTarget, setUnmergeTarget] = useState(null);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [showAddChoice, setShowAddChoice] = useState(false);
@@ -239,7 +240,7 @@ export default function Sidebar({
               }}
             >
             <nav className="px-3 space-y-0.5 pb-2">
-              {stacks.map((stack) => {
+              {stacks.filter(stack => !stack.passed).map((stack) => {
                 const dday = getDday(stack.examDate);
                 const active = selectedStackId === stack.id && currentView === 'chat';
                 return (
@@ -297,10 +298,30 @@ export default function Sidebar({
             </div>
           </div>
 
-          {/* Wrong Notes */}
+          {/* Tools (collapsed menu) */}
           <div className="px-3 pb-1 mt-2">
-            <NavBtn active={currentView === 'wrong-notes'} onClick={() => onNavigate('wrong-notes')}
-              icon={<NotesIcon />} label="wrong notes" />
+            <button
+              onClick={() => setToolsOpen(v => !v)}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+            >
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-400 flex-shrink-0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="flex-1 text-left text-[13px] font-medium">tools</span>
+              <svg
+                width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                className={`text-gray-300 transition-transform duration-200 ${toolsOpen ? 'rotate-180' : ''}`}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {toolsOpen && (
+              <div className="mt-0.5 ml-3 pl-3 border-l border-gray-100 space-y-0.5">
+                <NavBtn active={currentView === 'wrong-notes'} onClick={() => { onNavigate('wrong-notes'); setToolsOpen(false); }}
+                  icon={<NotesIcon />} label="wrong notes" />
+              </div>
+            )}
           </div>
 
           <div className="flex-1" />

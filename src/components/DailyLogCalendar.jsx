@@ -25,7 +25,7 @@ function getWeekDays(dateStr) {
   });
 }
 function logKey(dateStr) { return `daily_log_${dateStr}`; }
-function loadLog(dateStr) { return storage.get(logKey(dateStr), { todos: [], memo: '' }); }
+function loadLog(dateStr) { return storage.get(logKey(dateStr), { todos: [], memo: '', links: [] }); }
 function saveLog(dateStr, data) { storage.set(logKey(dateStr), data); }
 function hasTodosOnDate(dateStr) {
   const d = storage.get(logKey(dateStr));
@@ -63,7 +63,7 @@ function DayCell({ dateStr, compact, isToday, isSelected, hasTodos, hasDeadline,
 /* ── Main component ── */
 const DOW_KO = ['일','월','화','수','목','금','토'];
 
-export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = [], compact = false, onRecordActivity }) {
+export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = [], compact = false, onRecordActivity, onNavigateToTask }) {
   const TODAY = todayStr();
   const [selectedDate, setSelectedDate] = useState(TODAY);
   const [viewMode, setViewMode] = useState('month');
@@ -83,7 +83,7 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = 
   const [tasksCollapsed, setTasksCollapsed] = useState(isMobile);
   const [noticeText, setNoticeText] = useState(() => storage.get('mergee_daily_notice', ''));
   const [noticeEditing, setNoticeEditing] = useState(false);
-  const [dailyLinks, setDailyLinks] = useState(() => storage.get('mergee_daily_links', []));
+  const [dailyLinks, setDailyLinks] = useState(() => loadLog(todayStr()).links || []);
   const [showLinkAdd, setShowLinkAdd] = useState(false);
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
@@ -97,6 +97,7 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = 
     const data = loadLog(selectedDate);
     setTodos(data.todos || []);
     setMemo(data.memo || '');
+    setDailyLinks(data.links || []);
     setEditingId(null);
   }, [selectedDate]);
 
@@ -233,8 +234,8 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = 
   }, [noticeText]);
 
   useEffect(() => {
-    storage.set('mergee_daily_links', dailyLinks);
-  }, [dailyLinks]);
+    saveLog(selectedDate, { ...loadLog(selectedDate), links: dailyLinks });
+  }, [dailyLinks, selectedDate]);
 
   const addDailyLink = useCallback(() => {
     if (!newLinkUrl.trim()) return;
@@ -515,7 +516,11 @@ export default function DailyLogCalendar({ tasks = [], stacks = [], timetable = 
                   {[0,1,2].map(i => <span key={i} className="block w-3 h-0.5 bg-gray-400 rounded" />)}
                 </div>
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: task.color || '#6366f1' }} />
-                <span className="flex-1 text-xs text-gray-600 truncate">{task.name}</span>
+                <button
+                  onClick={() => onNavigateToTask?.(task.id)}
+                  className="flex-1 text-xs text-gray-600 truncate text-left hover:text-indigo-600 transition-colors"
+                  title="Tasks 페이지로 이동"
+                >{task.name}</button>
                 {task.dueDate && (
                   <span className="text-[10px] text-gray-300 flex-shrink-0">~{task.dueDate.slice(5)}</span>
                 )}
