@@ -26,6 +26,7 @@ const TOOLS = [
   { key: 'campus-life', label: 'campus life', emoji: '🎓' },
   { key: 'stack-clash', label: 'stack clash', emoji: '⚡' },
   { key: 'weak-sniper', label: 'weak sniper', emoji: '🎯' },
+  { key: 'wrong-notes', label: 'wrong notes', emoji: '📝' },
   { key: 'merge-report', label: 'merge report', emoji: '📊' },
 ];
 
@@ -111,7 +112,7 @@ export default function TopNav({ currentView, onNavigate, onOpenSettings, user, 
     setLinks((prev) => prev.filter((l) => l.id !== id));
   };
 
-  const isToolView = ['stack-clash', 'weak-sniper', 'merge-report', 'habit-tracker', 'campus-life'].includes(currentView);
+  const isToolView = ['stack-clash', 'weak-sniper', 'merge-report', 'habit-tracker', 'campus-life', 'wrong-notes'].includes(currentView);
 
   return (
     <div className="h-10 bg-white border-b border-gray-100 flex items-center px-3 md:px-5 flex-shrink-0 relative z-10">
