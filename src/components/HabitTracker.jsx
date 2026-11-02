@@ -101,9 +101,9 @@ export default function HabitTracker({ habits: propHabits, habitLogs: propHabitL
     <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#f8f8f6' }}>
 
       {/* ── Header ── */}
-      <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-4 flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-4 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-black text-gray-900 tracking-tight">habit tracker</span>
+          <span className="text-sm font-black text-gray-900 tracking-tight whitespace-nowrap">habit tracker</span>
           <div className="flex items-center gap-1">
             <button onClick={prevMonth} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
               <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
@@ -131,7 +131,7 @@ export default function HabitTracker({ habits: propHabits, habitLogs: propHabitL
 
         <button
           onClick={() => setShowAddForm(v => !v)}
-          className="flex items-center gap-1.5 h-7 px-3 text-xs font-semibold text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+          className="flex items-center gap-1.5 h-7 px-3 whitespace-nowrap flex-shrink-0 text-xs font-semibold text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
         >
           <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
           습관 추가

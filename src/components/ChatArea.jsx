@@ -198,24 +198,24 @@ export default function ChatArea({
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#f8f9fa]">
       {/* ── Header ── */}
-      <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-3 flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-3 gap-y-2 flex-shrink-0">
         {/* Stack identity */}
         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stack.color }} />
-        <h2 className="font-semibold text-gray-800 text-sm">{stack.name}</h2>
+        <h2 className="font-semibold text-gray-800 text-sm whitespace-nowrap">{stack.name}</h2>
         {dday !== null && (
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${getDdayBadgeClass(dday)}`}>
             {formatDday(dday)}
           </span>
         )}
         {stack.examDate && (
-          <span className="text-[11px] text-gray-400">
+          <span className="text-[11px] text-gray-400 whitespace-nowrap">
             {new Date(stack.examDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
           </span>
         )}
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="contents sm:flex sm:ml-auto sm:items-center sm:gap-3 sm:min-w-0">
           {/* Progress bar */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
             <div className="w-16 h-1.5 bg-gray-100 rounded-full">
               <div className="h-1.5 rounded-full transition-all" style={{ width: `${stack.progress || 0}%`, backgroundColor: stack.color }} />
             </div>
@@ -223,12 +223,12 @@ export default function ChatArea({
           </div>
 
           {/* Tab bar */}
-          <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
+          <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5 w-full sm:w-auto order-last sm:order-none">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab.id)}
-                className={`h-7 px-3 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 ${
+                className={`h-7 px-3 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1 whitespace-nowrap flex-1 sm:flex-none ${
                   activeTab === tab.id && tab.id !== 'quiz'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
@@ -284,7 +284,7 @@ export default function ChatArea({
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 min-h-0">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 min-h-0">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full pb-12 opacity-60">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-2xl mb-3 font-bold" style={{ backgroundColor: stack.color }}>

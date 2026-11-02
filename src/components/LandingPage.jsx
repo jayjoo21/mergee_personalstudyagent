@@ -153,10 +153,10 @@ export default function LandingPage({ onGetStarted, onOpenAuth, onDemo }) {
       {/* ── Fixed Nav ── */}
       <nav
         style={{ background: 'rgba(245,245,243,0.88)', backdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(0,0,0,0.06)' }}
-        className="fixed top-0 left-0 right-0 z-50 px-8 py-4"
+        className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-8 py-3 sm:py-4"
       >
-        {/* 3-column grid ensures center links are always truly centered */}
-        <div className="max-w-6xl mx-auto grid grid-cols-3 items-center">
+        {/* sm+: 3-column grid keeps center links truly centered; mobile: logo + CTAs only */}
+        <div className="max-w-6xl mx-auto flex justify-between sm:grid sm:grid-cols-3 items-center">
           {/* Left: logo */}
           <div>
             <span
@@ -168,7 +168,7 @@ export default function LandingPage({ onGetStarted, onOpenAuth, onDemo }) {
           </div>
 
           {/* Center: nav links — perfectly centered */}
-          <div className="flex items-center justify-center gap-8">
+          <div className="hidden sm:flex items-center justify-center gap-8">
             <a href="#features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">
               features
             </a>
@@ -181,13 +181,13 @@ export default function LandingPage({ onGetStarted, onOpenAuth, onDemo }) {
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={handleCTA}
-              className="text-sm font-semibold text-gray-500 px-4 py-2 rounded-xl hover:bg-gray-100 transition-all"
+              className="text-sm font-semibold text-gray-500 px-3 sm:px-4 py-2 rounded-xl hover:bg-gray-100 transition-all whitespace-nowrap"
             >
               log in
             </button>
             <button
               onClick={handleCTA}
-              className="bg-[#111] text-white text-sm font-semibold px-5 py-2 rounded-xl hover:bg-gray-800 transition-all hover:scale-105 active:scale-95"
+              className="bg-[#111] text-white text-sm font-semibold px-4 sm:px-5 py-2 rounded-xl hover:bg-gray-800 transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
             >
               get started
             </button>

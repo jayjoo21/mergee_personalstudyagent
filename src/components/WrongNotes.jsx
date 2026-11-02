@@ -56,9 +56,9 @@ export default function WrongNotes({ wrongNotes, stacks, apiKey, onDelete }) {
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#f8f9fa]">
       {/* Sticky top area */}
-      <div className="bg-[#f8f9fa] px-8 pt-8 pb-4 flex-shrink-0 border-b border-gray-100">
+      <div className="bg-[#f8f9fa] px-4 md:px-8 pt-5 md:pt-8 pb-4 flex-shrink-0 border-b border-gray-100">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-4">
           <div>
             <h1 className="text-xl font-black text-gray-900">wrong notes</h1>
             <p className="text-sm text-gray-400 mt-0.5">{wrongNotes.length}개 저장됨</p>
@@ -67,21 +67,21 @@ export default function WrongNotes({ wrongNotes, stacks, apiKey, onDelete }) {
             <button
               onClick={pickRandom}
               disabled={!filtered.length}
-              className="h-9 px-3 flex items-center gap-1.5 text-xs font-semibold bg-white border border-gray-200 hover:border-gray-400 text-gray-600 rounded-xl transition-colors disabled:opacity-40"
+              className="h-9 px-3 flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold bg-white border border-gray-200 hover:border-gray-400 text-gray-600 rounded-xl transition-colors disabled:opacity-40"
             >
               🎲 <span>랜덤</span>
             </button>
             <button
               onClick={analyzeWeak}
               disabled={analyzing || !wrongNotes.length}
-              className="h-9 px-3 flex items-center gap-1.5 text-xs font-semibold bg-white border border-gray-200 hover:border-gray-400 text-gray-600 rounded-xl transition-colors disabled:opacity-40"
+              className="h-9 px-3 flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold bg-white border border-gray-200 hover:border-gray-400 text-gray-600 rounded-xl transition-colors disabled:opacity-40"
             >
               🧠 <span>{analyzing ? '분석 중...' : '취약점 분석'}</span>
             </button>
             <button
               onClick={copyAll}
               disabled={!filtered.length}
-              className="h-9 px-3 flex items-center gap-1.5 text-xs font-semibold bg-white border border-gray-200 hover:border-gray-400 text-gray-600 rounded-xl transition-colors disabled:opacity-40"
+              className="h-9 px-3 flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold bg-white border border-gray-200 hover:border-gray-400 text-gray-600 rounded-xl transition-colors disabled:opacity-40"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -127,7 +127,7 @@ export default function WrongNotes({ wrongNotes, stacks, apiKey, onDelete }) {
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-8 py-5">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-5">
         <div className="max-w-2xl mx-auto space-y-4">
           {/* Weak analysis */}
           {weakAnalysis && (

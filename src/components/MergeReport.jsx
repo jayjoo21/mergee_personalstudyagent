@@ -70,17 +70,17 @@ export default function MergeReport({ stacks, studyActivity, conversations, wron
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#f8f9fa]">
       {/* ── Top: Grade bar (full width) ── */}
-      <div className="bg-white border-b border-gray-100 px-6 py-4 flex-shrink-0">
-        <div className="flex items-center gap-6">
+      <div className="bg-white border-b border-gray-100 px-4 md:px-6 py-4 flex-shrink-0">
+        <div className="flex items-center gap-4 md:gap-6">
           {/* Grade */}
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: grade.bg }}>
             <span className="text-4xl font-black" style={{ color: grade.color }}>{grade.label}</span>
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-1">
               <h1 className="text-[22px] font-black text-gray-900 tracking-tight">merge report</h1>
               {/* Range tabs */}
-              <div className="flex bg-gray-100 rounded-xl overflow-hidden text-xs font-semibold ml-2">
+              <div className="flex bg-gray-100 rounded-xl overflow-hidden text-xs font-semibold md:ml-2">
                 {[7, 14, 30].map((r) => (
                   <button key={r} onClick={() => setRange(r)}
                     className={`px-3 py-1.5 transition-colors ${range === r ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-200'}`}>
@@ -94,7 +94,7 @@ export default function MergeReport({ stacks, studyActivity, conversations, wron
                 </svg>
               </button>
             </div>
-            <div className="flex items-center gap-6 text-sm text-gray-500">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 md:gap-6 text-sm text-gray-500">
               <span><span className="font-bold text-gray-800">{activeDays}/{range}일</span> 학습</span>
               <span><span className="font-bold text-gray-800">{totalActivity}</span>건 활동</span>
               {streak > 0 && <span>🔥 <span className="font-bold text-gray-800">{streak}일</span> 스트릭</span>}
@@ -105,9 +105,9 @@ export default function MergeReport({ stacks, studyActivity, conversations, wron
       </div>
 
       {/* ── Bottom: 2-col grid ── */}
-      <div className="flex-1 overflow-hidden flex min-h-0">
+      <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row min-h-0">
         {/* LEFT column */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4 border-r border-gray-100">
+        <div className="md:flex-1 md:overflow-y-auto px-4 md:px-5 py-5 space-y-4 md:border-r border-gray-100">
           {/* Weekly heatmap */}
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">주간 활동</p>
@@ -193,7 +193,7 @@ export default function MergeReport({ stacks, studyActivity, conversations, wron
         </div>
 
         {/* RIGHT column */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+        <div className="md:flex-1 md:overflow-y-auto px-4 md:px-5 pb-5 md:py-5 space-y-4">
           {/* Stats 2x2 grid */}
           <div className="grid grid-cols-2 gap-3">
             {[

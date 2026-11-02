@@ -388,15 +388,15 @@ function DragTimetableGrid({ timetable, onAddClass, onDeleteClass }) {
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
         <div className="px-5 pt-4 pb-2 flex items-center gap-2 border-b border-gray-50">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">주간 시간표</p>
-          <span className="text-[10px] text-gray-300">— 빈 슬롯을 드래그하여 강의 추가</span>
+          <span className="hidden sm:inline text-[10px] text-gray-300">— 빈 슬롯을 드래그하여 강의 추가</span>
           <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#d1d5db" strokeWidth={2} className="ml-0.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/>
           </svg>
         </div>
 
         <div className="overflow-x-auto" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
-          <div className="flex" style={{ minWidth: `${14 * 4 + 80 * days.length}px` }}>
-            <div className="w-14 flex-shrink-0 border-r border-gray-100 relative" style={{ height: totalH + 34 }}>
+          <div className="flex" style={{ minWidth: `${40 + 48 * days.length}px` }}>
+            <div className="w-10 sm:w-14 flex-shrink-0 border-r border-gray-100 relative" style={{ height: totalH + 34 }}>
               <div style={{ height: 34 }} />
               <div className="relative" style={{ height: totalH }}>
                 {Array.from({ length: SLOT_COUNT }, (_, i) => (
@@ -410,7 +410,7 @@ function DragTimetableGrid({ timetable, onAddClass, onDeleteClass }) {
             </div>
 
             {days.map(day => (
-              <div key={day} className="flex-1 min-w-[80px] border-r border-gray-100 last:border-r-0 flex flex-col">
+              <div key={day} className="flex-1 min-w-[48px] sm:min-w-[80px] border-r border-gray-100 last:border-r-0 flex flex-col">
                 <div className={`flex-shrink-0 flex items-center justify-center border-b border-gray-100 text-[11px] font-bold ${
                   day === '토' ? 'text-blue-500' : 'text-gray-500'
                 }`} style={{ height: 34 }}>
@@ -680,8 +680,8 @@ export default function CampusLife({ apiKey, timetable: propTimetable, habits: p
     <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#f8f8f6' }}>
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-3 flex-shrink-0">
-        <div className="flex items-center gap-2.5">
+      <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2.5 whitespace-nowrap">
           <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-700">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z"/>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
@@ -691,11 +691,11 @@ export default function CampusLife({ apiKey, timetable: propTimetable, habits: p
         </div>
         <div className="flex-1" />
         {timetable.length > 0 && (
-          <button onClick={clearTimetable} className="h-7 px-3 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-gray-200">초기화</button>
+          <button onClick={clearTimetable} className="h-7 px-2.5 sm:px-3 whitespace-nowrap flex-shrink-0 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-gray-200">초기화</button>
         )}
         <button
           onClick={() => { setShowAddForm(v => !v); setShowUpload(false); }}
-          className={`flex items-center gap-1.5 h-7 px-3 text-xs font-semibold rounded-lg transition-colors border ${
+          className={`flex items-center gap-1.5 h-7 px-2.5 sm:px-3 text-xs font-semibold rounded-lg transition-colors border whitespace-nowrap flex-shrink-0 ${
             showAddForm ? 'bg-gray-100 text-gray-700 border-gray-300' : 'text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200'
           }`}
         >
@@ -706,14 +706,14 @@ export default function CampusLife({ apiKey, timetable: propTimetable, habits: p
         </button>
         <button
           onClick={() => { setShowUpload(v => !v); setShowAddForm(false); setParsedClasses(null); setUploadImg(null); setParseError(''); }}
-          className={`flex items-center gap-1.5 h-7 px-3 text-xs font-semibold rounded-lg transition-colors border ${
+          className={`flex items-center gap-1.5 h-7 px-2.5 sm:px-3 text-xs font-semibold rounded-lg transition-colors border whitespace-nowrap flex-shrink-0 ${
             showUpload ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200'
           }`}
         >
           <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
           </svg>
-          AI 시간표 분석
+          AI <span className="hidden sm:inline">시간표 </span>분석
         </button>
       </div>
 

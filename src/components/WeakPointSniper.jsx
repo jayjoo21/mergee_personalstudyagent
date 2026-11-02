@@ -54,15 +54,15 @@ export default function WeakPointSniper({ wrongNotes, stacks, apiKey }) {
   ).slice(0, 5);
 
   return (
-    <div className="flex-1 flex min-h-0 overflow-hidden">
+    <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden">
       {/* ── LEFT: Analysis panel (35%) ── */}
-      <div className="w-[35%] flex flex-col border-r border-gray-100 overflow-y-auto bg-white">
-        <div className="px-6 py-5 border-b border-gray-100">
+      <div className="w-full md:w-[35%] flex-shrink-0 md:flex-shrink flex flex-col md:border-r border-b md:border-b-0 border-gray-100 md:overflow-y-auto bg-white">
+        <div className="px-4 md:px-6 py-5 border-b border-gray-100">
           <h1 className="text-[28px] font-black text-gray-900 tracking-tight leading-none">weak sniper</h1>
           <p className="text-[14px] text-gray-400 mt-1.5">오답 패턴 분석 → 취약 개념 저격</p>
         </div>
 
-        <div className="px-6 py-6 flex-1 space-y-6">
+        <div className="px-4 md:px-6 py-6 flex-1 space-y-6">
           {/* Per-stack stats */}
           {noteCounts.length > 0 && (
             <div>
@@ -159,7 +159,7 @@ export default function WeakPointSniper({ wrongNotes, stacks, apiKey }) {
       </div>
 
       {/* ── RIGHT: Quiz panel (65%) ── */}
-      <div className="flex-1 flex flex-col overflow-y-auto bg-[#f8f9fa] px-6 py-6">
+      <div className="flex-1 flex flex-col md:overflow-y-auto bg-[#f8f9fa] px-4 md:px-6 py-6">
         {error && (
           <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-500 mb-4">{error}</div>
         )}

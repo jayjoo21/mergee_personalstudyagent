@@ -127,7 +127,7 @@ export default function App() {
 
   /* ─── Load / clear data when auth user changes ─── */
   useEffect(() => {
-    if (!hasSupabase || authLoading) return;
+    if (!hasSupabase || authLoading || isDemo) return;
 
     if (!user) {
       // Logged out — reset to defaults

@@ -1047,7 +1047,7 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#f8f9fa]">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-3.5 flex items-center justify-between flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-4 md:px-6 py-3.5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <h2 className="font-semibold text-gray-800 text-sm">job board</h2>
           <span className="text-xs text-gray-400">{jobs.length}개</span>
@@ -1064,7 +1064,7 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
       </div>
 
       {/* Filter tabs */}
-      <div className="bg-white border-b border-gray-100 px-6 flex gap-1 overflow-x-auto flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-2 md:px-6 flex gap-1 overflow-x-auto flex-shrink-0">
         {['전체', ...STATUSES].map((tab) => (
           <button key={tab} onClick={() => setFilter(tab)}
             className={`px-3.5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
@@ -1090,7 +1090,70 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
             <p className="text-gray-400 text-xs mt-1">위의 "공고 추가" 버튼으로 시작해보세요</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <>
+          {/* Mobile: card list (the 8-column table is unreadable on a phone) */}
+          <div className="md:hidden p-3 space-y-2.5">
+            {filtered.map((job) => {
+              const days = getDays(job.deadline);
+              const urgent = days !== null && days <= 3;
+              const qs = storage.get(coverKey(job.id), []);
+              const completedLetter = qs.filter(q => q.text?.trim()).length;
+              return (
+                <div
+                  key={job.id}
+                  onClick={() => setDetailJob(job)}
+                  className="bg-white border border-gray-100 rounded-2xl p-4 cursor-pointer active:bg-gray-50"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 text-[15px] break-keep">{job.company}</p>
+                      <p className="text-gray-500 text-[13px] mt-0.5 break-keep">{job.position || '직무 미입력'}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <StatusBadge status={job.status} onChange={(s) => handleStatusChange(job.id, s)} />
+                      <button
+                        onClick={() => { setEditingJob(job); setShowModal(true); }}
+                        className="w-8 h-8 flex items-center justify-center text-gray-300 active:text-gray-600 rounded-lg"
+                        aria-label="수정"
+                      >
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center flex-wrap gap-x-3 gap-y-1.5 mt-3">
+                    {job.deadline && (
+                      <span className={`text-[12px] font-medium ${urgent ? 'text-red-600' : 'text-gray-500'}`}>
+                        {new Date(job.deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} 마감
+                      </span>
+                    )}
+                    {days !== null && (
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${urgent ? 'bg-red-100 text-red-600' : days <= 14 ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-500'}`}>
+                        {days < 0 ? '마감' : days === 0 ? 'D-day' : `D-${days}`}
+                      </span>
+                    )}
+                    {job.fitScore != null && (
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-12 h-1.5 bg-gray-100 rounded-full">
+                          <span className="block h-1.5 rounded-full" style={{
+                            width: job.fitScore + '%',
+                            background: job.fitScore >= 70 ? '#10b981' : job.fitScore >= 40 ? '#f59e0b' : '#ef4444',
+                          }} />
+                        </span>
+                        <span className="text-xs font-semibold text-gray-600 tabular-nums">{job.fitScore}%</span>
+                      </span>
+                    )}
+                    {completedLetter > 0 && (
+                      <span className="text-xs font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">자소서 {completedLetter}문항</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <table className="hidden md:table w-full text-sm">
             <thead className="bg-white border-b border-gray-100 sticky top-0 z-10">
               <tr>
                 <th className="text-left px-6 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">회사명</th>
@@ -1177,6 +1240,7 @@ export default function JobBoard({ apiKey, stacks = [], resumeMaterials = [], on
               })}
             </tbody>
           </table>
+          </>
         )}
       </div>
 

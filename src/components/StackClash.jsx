@@ -10,7 +10,7 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
   if (mode === 'engine') {
     return (
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-1 flex-shrink-0">
+        <div className="bg-white border-b border-gray-100 px-4 md:px-6 py-3 flex items-center gap-1 flex-shrink-0">
           <button onClick={() => setMode('clash')} className="px-3 py-1.5 text-xs font-semibold rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
             클래시
           </button>
@@ -76,7 +76,7 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Mode toggle */}
-      <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-1 flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 px-4 md:px-6 py-3 flex items-center gap-1 flex-shrink-0">
         <button onClick={() => setMode('clash')} className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-gray-900 text-white transition-colors">
           클래시
         </button>
@@ -84,15 +84,15 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
           전체 최적화
         </button>
       </div>
-    <div className="flex-1 flex min-h-0 overflow-hidden">
+    <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden">
       {/* ── LEFT: Settings (40%) ── */}
-      <div className="w-[40%] flex flex-col border-r border-gray-100 overflow-y-auto bg-white">
-        <div className="px-6 py-5 border-b border-gray-100">
+      <div className="w-full md:w-[40%] flex-shrink-0 md:flex-shrink flex flex-col md:border-r border-b md:border-b-0 border-gray-100 md:overflow-y-auto bg-white">
+        <div className="px-4 md:px-6 py-5 border-b border-gray-100">
           <h1 className="text-[28px] font-black text-gray-900 tracking-tight leading-none">stack clash</h1>
           <p className="text-[14px] text-gray-400 mt-1.5">시험들을 동시에 준비할 때 최적 시간 배분을 계산해요</p>
         </div>
 
-        <div className="px-6 py-6 space-y-6 flex-1">
+        <div className="px-4 md:px-6 py-6 space-y-6 flex-1">
           {active.length < 2 ? (
             <div className="bg-gray-50 rounded-2xl p-6 text-center text-sm text-gray-400">
               활성 스택이 2개 이상 필요합니다
@@ -187,7 +187,7 @@ export default function StackClash({ stacks, apiKey, onAcceptPlan }) {
       </div>
 
       {/* ── RIGHT: Results (60%) ── */}
-      <div className="flex-1 flex flex-col overflow-y-auto bg-[#f8f9fa] px-6 py-6 space-y-5">
+      <div className="flex-1 flex flex-col md:overflow-y-auto bg-[#f8f9fa] px-4 md:px-6 py-6 space-y-5">
         {!result ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40 py-20">
             <div className="text-6xl mb-4">⚡</div>
