@@ -372,60 +372,129 @@ function ItemModal({ item, onSave, onDelete, onClose }) {
   );
 }
 
-/* ───────────── AI import ───────────── */
-function ImportModal({ apiKey, onAdd, onClose }) {
+/* ───────────── Import (external LLM result or in-app AI) ───────────── */
+const SCHEMA_PROMPT = '아래 [내 자료]는 내가 지금까지 한 프로젝트·자격·활동·수상·링크에 대한 메모다. 이를 항목별로 분리해서 JSON 배열로만 출력해라. 설명이나 코드블록 표시(백틱) 없이 JSON만 출력해라.\n\n'
+  + '항목 형식:\n{"type":"project|activity|cert|award|link","title":"","org":"","role":"","start":"YYYY-MM","end":"YYYY-MM","summary":"한 줄 요약","situation":"","action":"","result":"","tags":[],"url":"","score":""}\n\n'
+  + '규칙:\n'
+  + '1. 자료에 없는 사실·수치는 절대 만들지 말고, 모르면 빈 문자열로 둔다.\n'
+  + '2. 숫자와 고유명사는 원문 그대로 유지한다.\n'
+  + '3. project·activity는 가능하면 situation(상황)·action(내가 한 일)·result(결과, 숫자 포함)로 나눈다.\n'
+  + '4. cert(자격·어학)는 start에 취득월, score에 점수·등급을 넣고, award(수상)는 start에 수상월을 넣는다.\n'
+  + '5. 진행 중이면 end는 빈 문자열로 둔다. 날짜는 YYYY-MM 형식으로 쓴다.\n'
+  + '6. tags에는 기술·키워드를 넣는다.\n\n'
+  + '[내 자료]\n(여기에 자료를 붙여넣기)\n';
+
+function parseItemsFromText(text) {
+  const cleaned = text.replace(/```(?:json)?/gi, '').trim();
+  const tryParse = (str) => { try { return JSON.parse(str); } catch { return null; } };
+  const arr = cleaned.match(/\[[\s\S]*\]/);
+  let parsed = arr ? tryParse(arr[0]) : null;
+  if (!Array.isArray(parsed)) {
+    const obj = cleaned.match(/\{[\s\S]*\}/);
+    const o = obj ? tryParse(obj[0]) : null;
+    parsed = Array.isArray(o?.items) ? o.items : null;
+  }
+  if (!Array.isArray(parsed)) throw new Error('JSON을 읽지 못했어요. 외부 LLM이 출력한 내용 전체를 그대로 붙여넣어 주세요.');
+  return parsed;
+}
+
+function normalizeItems(list) {
+  return list
+    .filter((x) => x && typeof x === 'object' && x.title)
+    .map((x) => ({
+      ...EMPTY, ...x,
+      type: TYPE_BY_ID[x.type] ? x.type : 'activity',
+      tags: Array.isArray(x.tags) ? x.tags.map(String) : [],
+      id: uid(), createdAt: new Date().toISOString(),
+    }));
+}
+
+function ImportModal({ apiKey, existing, onAdd, onClose }) {
+  const [mode, setMode] = useState('paste'); // 'paste' = external LLM result, 'ai' = in-app
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [found, setFound] = useState(null);
   const [checked, setChecked] = useState({});
+  const [copied, setCopied] = useState(false);
 
-  const run = async () => {
+  const isDup = (x) => existing.some((e) => e.type === x.type && e.title.trim().toLowerCase() === x.title.trim().toLowerCase());
+
+  const showFound = (list) => {
+    if (!list.length) { setError('항목을 찾지 못했어요. 내용을 확인해 주세요.'); return; }
+    setFound(list);
+    setChecked(Object.fromEntries(list.map((x) => [x.id, !isDup(x)])));
+  };
+
+  const loadPasted = () => {
+    setError('');
+    try { showFound(normalizeItems(parseItemsFromText(text))); }
+    catch (e) { setError(e.message); }
+  };
+
+  const runAi = async () => {
     if (!text.trim()) return;
     if (!apiKey && !isDemoMode()) { setError('Claude API 키가 필요해요. 설정에서 키를 입력해주세요.'); return; }
     setError(''); setLoading(true);
-    try {
-      const list = await structurePortfolio(apiKey, text);
-      const clean = list
-        .filter((x) => x && x.title)
-        .map((x) => ({
-          ...EMPTY, ...x,
-          type: TYPE_BY_ID[x.type] ? x.type : 'activity',
-          tags: Array.isArray(x.tags) ? x.tags : [],
-          id: uid(), createdAt: new Date().toISOString(),
-        }));
-      if (!clean.length) { setError('항목을 찾지 못했어요. 내용을 조금 더 자세히 붙여넣어 보세요.'); }
-      setFound(clean);
-      setChecked(Object.fromEntries(clean.map((x) => [x.id, true])));
-    } catch (e) {
-      setError(e.message || '정리에 실패했어요.');
-    }
+    try { showFound(normalizeItems(await structurePortfolio(apiKey, text))); }
+    catch (e) { setError(e.message || '정리에 실패했어요.'); }
     setLoading(false);
   };
 
-  const save = () => {
-    onAdd(found.filter((x) => checked[x.id]));
-    onClose();
+  const copyPrompt = async () => {
+    const ok = await copyText(SCHEMA_PROMPT);
+    setCopied(ok);
+    setTimeout(() => setCopied(false), 1800);
   };
+
+  const switchMode = (m) => { setMode(m); setText(''); setError(''); setFound(null); };
+  const save = () => { onAdd(found.filter((x) => checked[x.id])); onClose(); };
+  const checkedCount = Object.values(checked).filter(Boolean).length;
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
       <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
           <div>
-            <h3 className="font-bold text-gray-800 text-base">붙여넣어서 AI로 정리</h3>
-            <p className="text-xs text-gray-400 mt-0.5">흩어진 메모·이력서·노션 글을 통째로 붙여넣으세요</p>
+            <h3 className="font-bold text-gray-800 text-base">자료 한꺼번에 가져오기</h3>
+            <p className="text-xs text-gray-400 mt-0.5">직접 입력하지 않고 정리된 결과를 불러와요</p>
           </div>
           <button onClick={onClose} className="text-gray-300 hover:text-gray-500 text-lg leading-none p-1">✕</button>
         </div>
 
+        {!found && (
+          <div className="px-5 pb-3 flex gap-1.5 flex-shrink-0">
+            {[['paste', '외부 LLM 결과 붙여넣기'], ['ai', '앱에서 AI로 정리']].map(([id, label]) => (
+              <button key={id} onClick={() => switchMode(id)}
+                className={'text-xs font-semibold px-3 py-1.5 rounded-full ' + (mode === id ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500')}>{label}</button>
+            ))}
+          </div>
+        )}
+
         <div className="px-5 pb-4 overflow-y-auto space-y-3 flex-1 min-h-0">
-          {!found && (
+          {!found && mode === 'paste' && (
+            <>
+              <div className="bg-gray-50 rounded-xl p-3.5 space-y-2.5">
+                <p className="text-xs font-semibold text-gray-700 break-keep">① 프롬프트를 복사해서 ChatGPT·Claude 등에 붙여넣고, 맨 아래에 내 자료를 넣어요</p>
+                <button onClick={copyPrompt} className="h-9 px-3.5 text-xs font-semibold bg-[#111] text-white rounded-xl">
+                  {copied ? '복사됐어요 ✓' : '프롬프트 복사'}
+                </button>
+                <p className="text-[11px] text-gray-400 break-keep">이력서, 노션 글, 활동 메모 등을 통째로 넣어도 돼요. 결과로 JSON이 나와요.</p>
+              </div>
+              <p className="text-xs font-semibold text-gray-700 pt-1">② LLM이 출력한 결과를 그대로 붙여넣어요</p>
+              <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8}
+                placeholder='[{"type":"project","title":"..."}, ...]'
+                className={inputCls + ' resize-none font-mono text-xs'} />
+              <p className="text-[11px] text-gray-400 break-keep">저장하기 전에 항목을 확인할 수 있고, 이미 있는 항목은 자동으로 체크가 꺼져요.</p>
+            </>
+          )}
+
+          {!found && mode === 'ai' && (
             <>
               <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10}
                 placeholder="예) 2025.03~06 교내 데이터분석 공모전 팀장, SQL로 학생 이탈 원인 분석해서 대상 수상..."
                 className={inputCls + ' resize-none'} />
-              <p className="text-[11px] text-gray-400">{text.length.toLocaleString()}자 · 입력에 없는 내용은 AI가 채우지 않도록 했어요. 저장 전에 꼭 확인하세요.</p>
+              <p className="text-[11px] text-gray-400 break-keep">{text.length.toLocaleString()}자 · Claude API 키가 필요해요. 입력에 없는 내용은 채우지 않도록 했어요.</p>
             </>
           )}
 
@@ -434,9 +503,12 @@ function ImportModal({ apiKey, onAdd, onClose }) {
               <p className="text-xs text-gray-500">{found.length}개 항목을 찾았어요. 저장할 것만 선택하세요. (저장 후 편집할 수 있어요)</p>
               {found.map((x) => (
                 <label key={x.id} className="flex gap-3 items-start bg-gray-50 rounded-xl p-3 cursor-pointer">
-                  <input type="checkbox" checked={!!checked[x.id]} onChange={() => setChecked((p) => ({ ...p, [x.id]: !p[x.id] }))} className="mt-1" />
+                  <input type="checkbox" checked={!!checked[x.id]} onChange={() => setChecked((p) => ({ ...p, [x.id]: !p[x.id] }))} className="mt-1 accent-gray-900" />
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-gray-400">{TYPE_BY_ID[x.type].emoji} {TYPE_BY_ID[x.type].label}{fmtPeriod(x) ? ` · ${fmtPeriod(x)}` : ''}</p>
+                    <p className="text-[11px] font-semibold text-gray-400">
+                      {TYPE_BY_ID[x.type].emoji} {TYPE_BY_ID[x.type].label}{fmtPeriod(x) ? ' · ' + fmtPeriod(x) : ''}
+                      {isDup(x) && <span className="ml-1.5 text-amber-600">이미 있음</span>}
+                    </p>
                     <p className="text-sm font-semibold text-gray-800 break-keep">{x.title}</p>
                     {(x.org || x.role) && <p className="text-xs text-gray-500">{[x.org, x.role].filter(Boolean).join(' · ')}</p>}
                     {x.summary && <p className="text-xs text-gray-500 mt-0.5">{x.summary}</p>}
@@ -446,21 +518,22 @@ function ImportModal({ apiKey, onAdd, onClose }) {
             </div>
           )}
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-red-500 break-keep">{error}</p>}
         </div>
 
         <div className="flex gap-2 px-5 py-4 border-t border-gray-100 flex-shrink-0">
           {!found ? (
-            <button onClick={run} disabled={loading || !text.trim()}
+            <button onClick={mode === 'paste' ? loadPasted : runAi}
+              disabled={loading || !text.trim()}
               className="flex-1 h-11 rounded-xl text-sm font-semibold bg-[#111] text-white hover:bg-gray-800 disabled:opacity-40">
-              {loading ? '정리하는 중...' : '✦ AI로 정리'}
+              {mode === 'paste' ? '불러오기' : loading ? '정리하는 중...' : '✦ AI로 정리'}
             </button>
           ) : (
             <>
               <button onClick={() => { setFound(null); setError(''); }} className="h-11 px-4 rounded-xl text-sm font-semibold border border-gray-200 text-gray-600">다시</button>
-              <button onClick={save} disabled={!Object.values(checked).some(Boolean)}
+              <button onClick={save} disabled={!checkedCount}
                 className="flex-1 h-11 rounded-xl text-sm font-semibold bg-[#111] text-white hover:bg-gray-800 disabled:opacity-40">
-                {Object.values(checked).filter(Boolean).length}개 저장
+                {checkedCount}개 저장
               </button>
             </>
           )}
@@ -546,7 +619,7 @@ export default function Portfolio({ apiKey, stacks = [] }) {
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button onClick={() => setShowImport(true)}
-            className="h-9 px-3 text-xs font-semibold border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 whitespace-nowrap">✦ AI 정리</button>
+            className="h-9 px-3 text-xs font-semibold border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 whitespace-nowrap">가져오기</button>
           <button onClick={() => setShowExport(true)} disabled={!items.length}
             className="h-9 px-3 text-xs font-semibold border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 whitespace-nowrap disabled:opacity-40">내보내기</button>
           <button onClick={() => setEditing('new')}
@@ -598,7 +671,7 @@ export default function Portfolio({ apiKey, stacks = [] }) {
               <p className="text-gray-600 font-semibold text-sm">아직 정리된 항목이 없어요</p>
               <p className="text-gray-400 text-xs mt-1 break-keep">했던 일을 여기에 쌓아두면, 자소서 쓸 때 한 번에 내보낼 수 있어요</p>
               <div className="flex flex-col sm:flex-row gap-2 justify-center mt-5">
-                <button onClick={() => setShowImport(true)} className="h-10 px-4 rounded-xl text-sm font-semibold bg-[#111] text-white">✦ 붙여넣어서 AI로 정리</button>
+                <button onClick={() => setShowImport(true)} className="h-10 px-4 rounded-xl text-sm font-semibold bg-[#111] text-white">가져오기 (LLM 결과 붙여넣기)</button>
                 <button onClick={() => upsert({ ...EMPTY, ...MERGEE_SEED, id: uid(), createdAt: new Date().toISOString() })}
                   className="h-10 px-4 rounded-xl text-sm font-semibold border border-gray-200 text-gray-600 bg-white">이 앱(mergee)을 첫 프로젝트로 추가</button>
               </div>
@@ -629,7 +702,7 @@ export default function Portfolio({ apiKey, stacks = [] }) {
         <ItemModal item={editing === 'new' ? null : editing} onSave={upsert} onDelete={remove} onClose={() => setEditing(null)} />
       )}
       {showImport && (
-        <ImportModal apiKey={apiKey} onAdd={(list) => persist([...list, ...items])} onClose={() => setShowImport(false)} />
+        <ImportModal apiKey={apiKey} existing={items} onAdd={(list) => persist([...list, ...items])} onClose={() => setShowImport(false)} />
       )}
       {showExport && (
         <ExportModal items={items} allCount={items.length} selectedCount={selected.size}
