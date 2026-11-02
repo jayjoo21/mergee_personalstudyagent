@@ -19,6 +19,7 @@ import DailyLogCalendar from './components/DailyLogCalendar';
 import MyPage from './components/MyPage';
 import HabitTracker from './components/HabitTracker';
 import CampusLife from './components/CampusLife';
+import Portfolio from './components/Portfolio';
 import { storage, KEYS, pullFromSupabase, setAuthUserId, enableDemoMode, disableDemoMode } from './utils/storage';
 import { buildDemoStore } from './utils/demoData';
 import { supabase, hasSupabase } from './utils/supabase';
@@ -596,6 +597,9 @@ export default function App() {
             resumeMaterials={resumeMaterials}
             onAddToPlan={handleAcceptPlan}
           />
+        )}
+        {currentView === 'portfolio' && (
+          <Portfolio apiKey={apiKey} stacks={stacks} />
         )}
         {currentView === 'career' && (
           <Career

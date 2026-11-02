@@ -188,6 +188,29 @@ const DEMO_CONVERSATIONS = {
 };
 
 /* ── Jobs ── */
+const DEMO_PORTFOLIO = [
+  {
+    id: 'demo-pf-1', type: 'project', title: '스터디 매니저 웹앱', org: '개인 프로젝트', role: '기획·개발',
+    start: '2026-03', end: '', score: '', url: '', createdAt: '2026-03-01T00:00:00.000Z',
+    summary: '시험 준비와 취업 활동을 한 곳에서 관리하는 웹앱',
+    situation: '시험 일정과 채용 공고가 여러 앱에 흩어져 있었다',
+    action: 'React와 Supabase로 통합 앱을 만들고 PWA로 배포했다',
+    result: '매일 직접 사용하며 학습 기록 60일 이상 유지',
+    tags: ['React', 'Supabase', 'PWA'],
+  },
+  {
+    id: 'demo-pf-2', type: 'cert', title: 'ADsP', org: '한국데이터산업진흥원', role: '',
+    start: '2026-04', end: '', score: '합격', url: '', createdAt: '2026-04-01T00:00:00.000Z',
+    summary: '', situation: '', action: '', result: '', tags: [],
+  },
+  {
+    id: 'demo-pf-3', type: 'activity', title: '교내 데이터분석 공모전', org: '○○대학교', role: '팀장',
+    start: '2025-09', end: '2025-11', score: '', url: '', createdAt: '2025-09-01T00:00:00.000Z',
+    summary: 'SQL로 학생 이탈 원인을 분석해 대상 수상',
+    situation: '', action: '', result: '참가 24팀 중 1위', tags: ['SQL', '협업'],
+  },
+];
+
 const DEMO_JOBS = [
   {
     id: 'demo-job-1',
@@ -293,6 +316,7 @@ export function buildDemoStore() {
     'mergee_resume_materials': [],
     'mergee_timer_goals':     {},
     'mergee_jobs':            DEMO_JOBS,
+    'mergee_portfolio':       DEMO_PORTFOLIO,
     'mergee_coverletter_demo-job-1': DEMO_COVER_LETTER_JOB1,
     [`daily_log_${TODAY}`]:         DEMO_DAILY_LOG_TODAY,
     [`daily_log_${subDays(1)}`]:    DEMO_DAILY_LOG_YESTERDAY,

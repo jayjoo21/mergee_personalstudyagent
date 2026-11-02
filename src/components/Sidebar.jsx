@@ -102,6 +102,8 @@ export default function Sidebar({
             icon={<CalendarIcon />} label="daily log" />
           <NavBtn active={currentView === 'job-board'} onClick={() => onNavigate('job-board')}
             icon={<KanbanIcon />} label="job board" />
+          <NavBtn active={currentView === 'portfolio'} onClick={() => onNavigate('portfolio')}
+            icon={<FolderIcon />} label="portfolio" />
           <NavBtn active={currentView === 'career'} onClick={() => onNavigate('career')}
             icon={<BriefcaseIcon />} label="career" />
           <NavBtn active={currentView === 'counseling-log'} onClick={() => onNavigate('counseling-log')}
@@ -470,5 +472,6 @@ const SvgIcon = ({ children, strokeWidth = 2 }) => (
 const GridIcon = () => (<SvgIcon><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></SvgIcon>);
 const KanbanIcon = () => (<SvgIcon><rect x="3" y="3" width="5" height="18" rx="1" /><rect x="10" y="6" width="5" height="15" rx="1" /><rect x="17" y="9" width="5" height="12" rx="1" /></SvgIcon>);
 const BriefcaseIcon = () => (<SvgIcon><path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></SvgIcon>);
+const FolderIcon = () => (<SvgIcon><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></SvgIcon>);
 const ChatBubbleIcon = () => (<SvgIcon><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></SvgIcon>);
 const CalendarIcon = () => (<SvgIcon><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></SvgIcon>);

@@ -229,6 +229,45 @@ export const getQuizQuestion = async (apiKey, stackName) => {
   return null;
 };
 
+/* ─── Portfolio: turn pasted notes into structured items ─── */
+export const structurePortfolio = async (apiKey, rawText) => {
+  if (IS_DEMO(apiKey)) {
+    await delay(900);
+    return [
+      { type: 'project', title: '(데모) 스터디 매니저 앱', org: '개인', role: '기획·개발', start: '2026-03', end: '', summary: '시험 준비와 취업 활동을 한곳에서 관리하는 웹앱', situation: '자격증과 공고 정보가 여러 곳에 흩어져 있었다', action: 'React와 Supabase로 통합 앱을 만들고 PWA로 배포했다', result: '', tags: ['React', 'Supabase'], url: '', score: '' },
+      { type: 'cert', title: '(데모) ADsP', org: '한국데이터산업진흥원', role: '', start: '2026-04', end: '', summary: '', situation: '', action: '', result: '', tags: [], url: '', score: '합격' },
+    ];
+  }
+
+  const system = '당신은 취업 포트폴리오 정리 도우미입니다. 사용자가 붙여넣은 글에서 경험·자격·활동·수상·링크를 항목으로 분리해 JSON 배열만 응답하세요.\n'
+    + '항목 형식: {"type":"project|activity|cert|award|link","title":"","org":"","role":"","start":"YYYY-MM","end":"YYYY-MM","summary":"한 줄 요약","situation":"","action":"","result":"","tags":[],"url":"","score":""}\n'
+    + '규칙: 1) 입력에 없는 사실·수치는 절대 만들지 말고 모르면 빈 문자열로 두세요. 2) 숫자와 고유명사는 원문 그대로 유지하세요. '
+    + '3) project·activity는 가능하면 situation(상황)·action(한 일)·result(결과)로 나누세요. 4) cert는 start에 취득월, score에 점수·등급을 넣으세요. '
+    + '5) 진행 중이면 end를 빈 문자열로 두세요. 6) 설명 없이 JSON 배열만 출력하세요.';
+
+  const res = await fetch(BASE, {
+    method: 'POST',
+    headers: headers(apiKey),
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system,
+      messages: [{ role: 'user', content: rawText.slice(0, 12000) }],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `API error ${res.status}`);
+  }
+  const data = await res.json();
+  const text = data.content[0].text;
+  const m = text.match(/\[[\s\S]*\]/);
+  if (!m) throw new Error('정리 결과를 읽을 수 없어요. 다시 시도해주세요.');
+  const parsed = JSON.parse(m[0]);
+  if (!Array.isArray(parsed)) throw new Error('정리 결과 형식이 올바르지 않아요.');
+  return parsed;
+};
+
 export const analyzeJobPostingFull = async (apiKey, jobText) => {
   if (IS_DEMO(apiKey)) {
     await delay(900);
