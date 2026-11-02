@@ -1,28 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getDday, formatDday, getDdayBadgeClass } from '../utils/helpers';
 import AddTaskModal from './AddTaskModal';
+import { storage } from '../utils/storage';
 
 const DETAIL_KEY = 'mergee_task_details';
 
 function loadDetail(taskId) {
-  try {
-    const all = JSON.parse(localStorage.getItem(DETAIL_KEY) || '{}');
-    return all[taskId] || { todos: [], memo: '', links: [] };
-  } catch { return { todos: [], memo: '', links: [] }; }
+  const all = storage.get(DETAIL_KEY, {});
+  return all[taskId] || { todos: [], memo: '', links: [] };
 }
 function saveDetail(taskId, data) {
-  try {
-    const all = JSON.parse(localStorage.getItem(DETAIL_KEY) || '{}');
-    all[taskId] = data;
-    localStorage.setItem(DETAIL_KEY, JSON.stringify(all));
-  } catch {}
+  storage.set(DETAIL_KEY, { ...storage.get(DETAIL_KEY, {}), [taskId]: data });
 }
 function removeDetail(taskId) {
-  try {
-    const all = JSON.parse(localStorage.getItem(DETAIL_KEY) || '{}');
-    delete all[taskId];
-    localStorage.setItem(DETAIL_KEY, JSON.stringify(all));
-  } catch {}
+  const all = { ...storage.get(DETAIL_KEY, {}) };
+  delete all[taskId];
+  storage.set(DETAIL_KEY, all);
 }
 
 export default function TasksPage({

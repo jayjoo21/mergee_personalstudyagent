@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { supabase, hasSupabase } from '../utils/supabase';
+import { storage, isSyncedKey, clearAllData } from '../utils/storage';
 
 export default function MyPage({
   user,
@@ -88,16 +89,16 @@ export default function MyPage({
     if (resetStep === 0) { setResetStep(1); return; }
     if (resetStep === 1) { setResetInput(''); setResetStep(2); return; }
     if (resetInput !== '초기화') return;
-    const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('mergee_'));
-    keysToRemove.forEach(k => localStorage.removeItem(k));
-    showToast('데이터가 초기화됐어요. 새로고침합니다...');
-    setTimeout(() => window.location.reload(), 1500);
+    clearAllData().then(() => {
+      showToast('데이터가 초기화됐어요. 새로고침합니다...');
+      setTimeout(() => window.location.reload(), 1500);
+    });
   };
 
   const handleExport = () => {
     const data = {};
     Object.keys(localStorage).forEach(k => {
-      if (k.startsWith('mergee_')) {
+      if (isSyncedKey(k)) {
         try { data[k] = JSON.parse(localStorage.getItem(k)); }
         catch { data[k] = localStorage.getItem(k); }
       }
@@ -120,7 +121,7 @@ export default function MyPage({
       try {
         const data = JSON.parse(ev.target.result);
         Object.entries(data).forEach(([k, v]) => {
-          if (k.startsWith('mergee_')) localStorage.setItem(k, JSON.stringify(v));
+          if (isSyncedKey(k)) storage.set(k, v);
         });
         setImportMsg('가져오기 완료! 새로고침합니다...');
         setTimeout(() => window.location.reload(), 1500);
@@ -136,8 +137,7 @@ export default function MyPage({
   const handleDeleteAccount = async () => {
     if (deleteStep === 0) { setDeleteStep(1); return; }
     if (deleteInput !== '탈퇴') return;
-    const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('mergee_'));
-    keysToRemove.forEach(k => localStorage.removeItem(k));
+    await clearAllData();
     await onLogout();
   };
 

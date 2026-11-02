@@ -141,6 +141,9 @@ export default function App() {
       setCounselingLogs([]);
       setTasks([]);
       setTags([]);
+      setHabits([]);
+      setTimetable([]);
+      setHabitLogs({});
       setStarted(false);
       setCurrentView('dashboard');
       return;
@@ -158,6 +161,9 @@ export default function App() {
       setCounselingLogs(storage.get(KEYS.COUNSELING_LOGS, []));
       setTasks(storage.get(KEYS.TASKS, []));
       setTags(storage.get(KEYS.TAGS, []));
+      setHabits(storage.get(KEYS.HABITS, []));
+      setTimetable(storage.get(KEYS.TIMETABLE, []));
+      setHabitLogs(storage.get(KEYS.HABIT_LOGS, {}));
       setStarted(true);
       setShowAuth(false);
     });

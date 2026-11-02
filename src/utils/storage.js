@@ -34,13 +34,17 @@ export const KEYS = {
   HABIT_LOGS: 'mergee_habit_logs',
 };
 
-// Keys that are synced to Supabase (exclude sensitive API key)
-const SYNCED_KEYS = new Set([
-  KEYS.STACKS, KEYS.CONVERSATIONS, KEYS.WRONG_NOTES,
-  KEYS.STUDY_ACTIVITY, KEYS.STREAK, KEYS.RESUME_MATERIALS,
-  KEYS.COUNSELING_LOGS, KEYS.TASKS, KEYS.TAGS,
-  KEYS.TIMER_GOALS, KEYS.QUICK_LINKS, KEYS.STACK_LIBRARY,
+// Device-local keys that are never synced (API key is sensitive, the rest are per-device)
+const LOCAL_ONLY_KEYS = new Set([
+  KEYS.API_KEY, KEYS.USER_ID,
+  'mergee_nickname', 'mergee_notif', 'mergee_stack_collapsed', 'mergee_last_uid',
 ]);
+
+// All app data syncs to Supabase: mergee_* and daily_log_*
+export function isSyncedKey(key) {
+  if (LOCAL_ONLY_KEYS.has(key)) return false;
+  return key.startsWith('mergee_') || key.startsWith('daily_log_');
+}
 
 // Auth user ID — set by App.jsx when user logs in/out
 let _authUserId = null;
@@ -68,18 +72,24 @@ export const storage = {
     } catch (e) {
       console.error('Storage write error:', e);
     }
-    // Fire-and-forget sync to Supabase
-    if (hasSupabase && (SYNCED_KEYS.has(key) || key.startsWith('daily_log_') || key.startsWith('mergee_coverletter_'))) {
-      const userId = storage.getUserId();
-      if (!userId) return;
+    // Sync only for a signed-in user, so pre-login/default writes never reach the server
+    if (hasSupabase && _authUserId && isSyncedKey(key)) {
       supabase
         .from('mergee_data')
-        .upsert({ user_id: userId, key, value, updated_at: new Date().toISOString() })
+        .upsert({ user_id: _authUserId, key, value, updated_at: new Date().toISOString() })
         .then(({ error }) => { if (error) console.warn('Supabase sync error:', error.message); });
     }
   },
   remove: (key) => {
     try { localStorage.removeItem(key); } catch {}
+    if (hasSupabase && _authUserId && isSyncedKey(key)) {
+      supabase
+        .from('mergee_data')
+        .delete()
+        .eq('user_id', _authUserId)
+        .eq('key', key)
+        .then(({ error }) => { if (error) console.warn('Supabase delete error:', error.message); });
+    }
   },
   getUserId: () => {
     // Prefer auth user ID when logged in
@@ -94,19 +104,58 @@ export const storage = {
   },
 };
 
-// Pull all data from Supabase into localStorage
+function localSyncedKeys() {
+  return Object.keys(localStorage).filter(isSyncedKey);
+}
+
+// Sync on login. Server wins for keys it already has; keys that exist only locally
+// (data created before sync existed or before this account signed in) are uploaded once.
 export async function pullFromSupabase() {
-  if (!hasSupabase) return;
-  const userId = storage.getUserId();
-  if (!userId) return;
+  if (!hasSupabase || !_authUserId) return;
+  const userId = _authUserId;
+
+  // A different account used this browser last: drop its cached data so it can't leak into this one
+  const lastUid = localStorage.getItem('mergee_last_uid');
+  if (lastUid && lastUid !== userId) {
+    localSyncedKeys().forEach((k) => localStorage.removeItem(k));
+  }
+  localStorage.setItem('mergee_last_uid', userId);
+
   const { data, error } = await supabase
     .from('mergee_data')
     .select('key, value')
     .eq('user_id', userId);
   if (error) { console.warn('Supabase pull error:', error.message); return; }
+
+  const serverKeys = new Set();
   for (const row of data) {
+    serverKeys.add(row.key);
     if (row.value !== null) {
       localStorage.setItem(row.key, JSON.stringify(row.value));
     }
   }
+
+  const now = new Date().toISOString();
+  const toUpload = [];
+  for (const key of localSyncedKeys()) {
+    if (serverKeys.has(key)) continue;
+    try {
+      toUpload.push({ user_id: userId, key, value: JSON.parse(localStorage.getItem(key)), updated_at: now });
+    } catch { /* skip unparsable values */ }
+  }
+  if (toUpload.length) {
+    const { error: upErr } = await supabase.from('mergee_data').upsert(toUpload);
+    if (upErr) console.warn('Supabase initial upload error:', upErr.message);
+  }
+}
+
+// Wipe all app data locally and on the server (reset data / account deletion)
+export async function clearAllData() {
+  if (hasSupabase && _authUserId) {
+    const { error } = await supabase.from('mergee_data').delete().eq('user_id', _authUserId);
+    if (error) console.warn('Supabase clear error:', error.message);
+  }
+  Object.keys(localStorage)
+    .filter(isSyncedKey)
+    .forEach((k) => localStorage.removeItem(k));
 }
