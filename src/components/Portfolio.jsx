@@ -239,16 +239,29 @@ function ExportModal({ items, selectedCount, allCount, selectedItems, onClose })
 }
 
 /* ───────────── Item form ───────────── */
-function Field({ label, children }) {
+function Field({ label, hint, dot, children, className = '' }) {
   return (
-    <div>
-      <label className="text-xs text-gray-500 font-semibold block mb-1">{label}</label>
+    <div className={className}>
+      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 mb-1.5">
+        {dot && <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />}
+        {label}
+        {hint && <span className="font-normal text-gray-400">{hint}</span>}
+      </label>
       {children}
     </div>
   );
 }
 
-const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900';
+const inputCls = 'w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 placeholder-gray-300 '
+  + 'focus:outline-none focus:bg-white focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition';
+
+const TYPE_HINT = {
+  project: '만든 것, 해결한 문제를 정리해요',
+  cert: '자격증·어학 성적을 기록해요',
+  activity: '인턴·동아리·대외활동·교육 경험이에요',
+  award: '수상·표창 내역이에요',
+  link: '대표 링크를 모아두세요',
+};
 
 function ItemModal({ item, onSave, onDelete, onClose }) {
   const [form, setForm] = useState(() => ({ ...EMPTY, ...(item || {}) }));
@@ -265,27 +278,45 @@ function ItemModal({ item, onSave, onDelete, onClose }) {
     onClose();
   };
 
+  const isStar = t.star;
+  const top = [];
+  if (t.orgLabel) top.push(<Field key="org" label={t.orgLabel}><input className={inputCls} value={form.org} onChange={set('org')} /></Field>);
+  if (isStar) top.push(<Field key="role" label="역할"><input className={inputCls} value={form.role} onChange={set('role')} placeholder="예: 팀장, 백엔드 개발" /></Field>);
+  if (t.score) top.push(<Field key="score" label="점수·등급"><input className={inputCls} value={form.score} onChange={set('score')} placeholder="예: 합격, IM2, 850점" /></Field>);
+  if (t.date === 'single') top.push(<Field key="date" label={t.dateLabel || '날짜'}><input className={inputCls} type="month" value={form.start} onChange={set('start')} /></Field>);
+
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
-      <form onSubmit={submit} className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col">
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
-          <h3 className="font-bold text-gray-800 text-base">{item ? '항목 편집' : '항목 추가'}</h3>
-          <button type="button" onClick={onClose} className="text-gray-300 hover:text-gray-500 text-lg leading-none p-1">✕</button>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-6">
+      <form onSubmit={submit} className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl max-h-[94vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-start justify-between px-5 sm:px-7 pt-5 sm:pt-6 pb-4 flex-shrink-0">
+          <div>
+            <h3 className="font-bold text-gray-900 text-lg tracking-tight">{item ? '항목 편집' : '새 항목 추가'}</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{TYPE_HINT[form.type]}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="닫기"
+            className="w-8 h-8 -mr-1.5 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">✕</button>
         </div>
 
-        <div className="px-5 pb-4 overflow-y-auto space-y-3 flex-1 min-h-0">
-          <div className="flex flex-wrap gap-1.5">
+        {/* Type selector — one row */}
+        <div className="px-5 sm:px-7 pb-4 flex-shrink-0">
+          <div className="grid grid-cols-5 gap-1 bg-gray-100 rounded-2xl p-1">
             {TYPES.map((x) => (
               <button type="button" key={x.id} onClick={() => setForm((p) => ({ ...p, type: x.id }))}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-full ${form.type === x.id ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                {x.emoji} {x.label}
+                className={'flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all '
+                  + (form.type === x.id ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600')}>
+                <span className="text-base sm:text-sm leading-none">{x.emoji}</span>
+                <span>{x.label}</span>
               </button>
             ))}
           </div>
+        </div>
 
+        {/* Body */}
+        <div className="px-5 sm:px-7 pb-5 overflow-y-auto space-y-4 flex-1 min-h-0">
           <Field label={form.type === 'link' ? '이름 *' : '제목 *'}>
-            <input className={inputCls} value={form.title} onChange={set('title')} required autoFocus
-              placeholder={form.type === 'cert' ? '예: ADsP' : form.type === 'link' ? '예: GitHub' : '예: 스터디 매니저 앱'} />
+            <input className={inputCls + ' !py-3 font-medium'} value={form.title} onChange={set('title')} required autoFocus
+              placeholder={form.type === 'cert' ? '예: ADsP' : form.type === 'link' ? '예: GitHub' : form.type === 'award' ? '예: 교내 해커톤 장려상' : '예: 스터디 매니저 앱'} />
           </Field>
 
           {form.type === 'link' && (
@@ -294,78 +325,68 @@ function ItemModal({ item, onSave, onDelete, onClose }) {
             </Field>
           )}
 
-          {t.orgLabel && (
-            <Field label={t.orgLabel}>
-              <input className={inputCls} value={form.org} onChange={set('org')} />
-            </Field>
-          )}
-
-          {(form.type === 'project' || form.type === 'activity') && (
-            <Field label="역할">
-              <input className={inputCls} value={form.role} onChange={set('role')} placeholder="예: 팀장, 백엔드 개발" />
-            </Field>
+          {top.length > 0 && (
+            <div className={'grid grid-cols-1 gap-3 ' + (top.length >= 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>{top}</div>
           )}
 
           {t.date === 'range' && (
             <div className="grid grid-cols-2 gap-3">
               <Field label="시작"><input className={inputCls} type="month" value={form.start} onChange={set('start')} /></Field>
-              <Field label="종료 (비우면 진행 중)"><input className={inputCls} type="month" value={form.end} onChange={set('end')} /></Field>
+              <Field label="종료" hint="비우면 진행 중"><input className={inputCls} type="month" value={form.end} onChange={set('end')} /></Field>
             </div>
-          )}
-          {t.date === 'single' && (
-            <Field label={t.dateLabel || '날짜'}>
-              <input className={inputCls} type="month" value={form.start} onChange={set('start')} />
-            </Field>
-          )}
-
-          {t.score && (
-            <Field label="점수·등급">
-              <input className={inputCls} value={form.score} onChange={set('score')} placeholder="예: 합격, IM2, 850점" />
-            </Field>
           )}
 
           <Field label={form.type === 'link' ? '메모' : '한 줄 요약'}>
-            <input className={inputCls} value={form.summary} onChange={set('summary')} />
+            <input className={inputCls} value={form.summary} onChange={set('summary')}
+              placeholder={form.type === 'link' ? '' : '이 경험을 한 문장으로'} />
           </Field>
 
-          {t.star && (
-            <>
-              <Field label="상황 — 어떤 문제·배경이었나">
+          {isStar && (
+            <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4 space-y-3.5">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">상세 · 자소서의 근거가 돼요</p>
+              <Field label="상황" hint="어떤 문제·배경이었나" dot="#f59e0b">
                 <textarea className={inputCls + ' resize-none'} rows={2} value={form.situation} onChange={set('situation')} />
               </Field>
-              <Field label="한 일 — 내가 무엇을 했나">
+              <Field label="한 일" hint="내가 무엇을 했나" dot="#6366f1">
                 <textarea className={inputCls + ' resize-none'} rows={3} value={form.action} onChange={set('action')} />
               </Field>
-              <Field label="결과 — 숫자로 적을수록 좋아요">
+              <Field label="결과" hint="숫자로 적을수록 좋아요" dot="#10b981">
                 <textarea className={inputCls + ' resize-none'} rows={2} value={form.result} onChange={set('result')} placeholder="예: 처리 시간 40% 단축, 사용자 120명" />
               </Field>
-            </>
+            </div>
           )}
 
-          {t.tags && (
-            <Field label="기술·키워드 (쉼표로 구분)">
-              <input className={inputCls} value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="React, SQL, 협업" />
-            </Field>
-          )}
-
-          {form.type !== 'link' && (
-            <Field label="링크">
-              <input className={inputCls} type="url" value={form.url} onChange={set('url')} placeholder="GitHub, 배포, 노션 주소" />
-            </Field>
+          {(t.tags || form.type !== 'link') && (
+            <div className={'grid grid-cols-1 gap-3 ' + (t.tags && form.type !== 'link' ? 'sm:grid-cols-2' : '')}>
+              {t.tags && (
+                <Field label="기술·키워드" hint="쉼표로 구분">
+                  <input className={inputCls} value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="React, SQL, 협업" />
+                </Field>
+              )}
+              {form.type !== 'link' && (
+                <Field label="링크">
+                  <input className={inputCls} type="url" value={form.url} onChange={set('url')} placeholder="GitHub, 배포, 노션 주소" />
+                </Field>
+              )}
+            </div>
           )}
         </div>
 
-        <div className="flex gap-2 px-5 py-4 border-t border-gray-100 flex-shrink-0">
+        {/* Footer */}
+        <div className="flex items-center gap-2 px-5 sm:px-7 py-4 border-t border-gray-100 bg-white flex-shrink-0">
           {item && (
             confirmDel ? (
               <button type="button" onClick={() => { onDelete(item.id); onClose(); }}
                 className="h-11 px-4 rounded-xl text-sm font-semibold bg-red-500 text-white">정말 삭제</button>
             ) : (
               <button type="button" onClick={() => setConfirmDel(true)}
-                className="h-11 px-4 rounded-xl text-sm font-semibold text-red-500 border border-red-100 hover:bg-red-50">삭제</button>
+                className="h-11 px-4 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors">삭제</button>
             )
           )}
-          <button type="submit" className="flex-1 h-11 rounded-xl text-sm font-semibold bg-[#111] text-white hover:bg-gray-800">저장</button>
+          <div className="flex-1" />
+          <button type="button" onClick={onClose}
+            className="h-11 px-5 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100 transition-colors hidden sm:block">취소</button>
+          <button type="submit" className="h-11 flex-1 sm:flex-none sm:px-10 rounded-xl text-sm font-semibold bg-[#111] text-white hover:bg-gray-800 active:scale-[0.98] transition-all">저장</button>
         </div>
       </form>
     </div>
